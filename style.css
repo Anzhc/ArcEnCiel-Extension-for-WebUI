@@ -1,0 +1,105 @@
+/* The container that holds multiple model cards in a grid-like layout */
+.arcen_model_list {
+    display: flex;          /* make a flex container */
+    flex-wrap: wrap;        /* allow wrapping to new rows */
+    gap: 10px;              /* space between cards */
+    justify-content: center;/* center them horizontally */
+    margin: 1em auto;       /* optional spacing */
+}
+
+/* Each card is a fixed-size tile */
+.arcen_model_card {
+    position: relative;        /* needed so child elements can be absolutely positioned */
+    width: 30em;
+    height: 40em;
+    background: #333;          /* fallback background if image is missing */
+    border-radius: 8px;
+    color: #fafafa;
+    overflow: hidden;          /* hide any image overflow */
+    cursor: pointer;
+    text-align: center;        /* center text if we want that in the overlay */
+    transition: transform 0.2s;
+    /* optional margin or box-sizing as desired */
+    /* margin: 0; */
+    box-sizing: border-box;
+}
+
+.arcen_model_card:hover {
+    transform: scale(1.05);
+}
+
+/* The background image taking up entire card area */
+.arcen_model_card img.model-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* fill entire card, preserving aspect ratio */
+    z-index: 1;        /* behind the text overlay */
+}
+
+/* The text overlay at the bottom, on top of the image */
+.arcen_model_card .model-info {
+    position: absolute;
+    bottom: 0;               /* anchor to bottom of the card */
+    width: 100%;             /* span entire card width */
+    padding: 0.5em;          /* some spacing around text */
+    background: rgba(0, 0, 0, 0.6); /* semi-transparent black for readability */
+    z-index: 2;              /* above the image */
+    box-sizing: border-box;
+}
+.arcen_model_detail_container {
+    margin-top: 1em;
+    padding: 1em;
+    border: 1px solid #444;
+    border-radius: 6px;
+  }
+  
+  .arcen_model_detail_container .model_description {
+    margin: 1em 0;
+  }
+  
+  .arcen_model_gallery {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  
+  .arcen_gallery_item img {
+    max-width: 200px;
+    max-height: 200px;
+    object-fit: cover;
+    border-radius: 4px;
+  }
+  
+  .version_block {
+    background: #222;
+    border-radius: 4px;
+    margin-bottom: 1em;
+  }
+
+  .arcen_extension_download_btn {
+    background-color: #313131 !important;
+    color: #f3f3f3 !important;
+    font-size: 1.2em !important;
+    font-weight: bold !important;
+    padding: 0.3em 0.3em !important;
+    border: none !important;
+    border-radius: 2px !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+    transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s !important;
+    cursor: pointer !important;
+    margin-top: 0.2em !important;
+    display: inline-block !important;
+  }
+  
+  .arcen_extension_download_btn:hover {
+    background-color: #34416d !important; 
+    transform: scale(1.02);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+  }
+  
+  .arcen_extension_download_btn:active {
+    transform: scale(0.98);
+  }

@@ -1,0 +1,17 @@
+/* style_html.css */
+.model-block {
+    padding: 1em;
+    border: 1px solid #444;
+    margin-bottom: 1em;
+    border-radius: 6px;
+  }
+  .model-block img, 
+  .model-block video {
+    max-width: 100%;
+  }
+  .model-block code {
+    background: #272727;
+    padding: 3px 6px;
+    border-radius: 3px;
+  }
+  
