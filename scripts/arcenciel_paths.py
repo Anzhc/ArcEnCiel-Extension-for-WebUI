@@ -13,7 +13,7 @@ def load_paths():
     If file doesn't exist, create it with placeholder paths.
     Return a dict { "LORA": "...", "CHECKPOINT": "...", ... }
     """
-    print("[ArcEnCiel] load_paths() reading from:", SAVED_PATHS_FILE)
+    #print("[ArcEnCiel] load_paths() reading from:", SAVED_PATHS_FILE)
     default_dict = {t: f"C:\\myModels\\{t.lower()}" for t in KNOWN_TYPES}
     # This is our fallback if the file doesn't exist or is incomplete
 
