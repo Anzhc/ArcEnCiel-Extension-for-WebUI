@@ -44,7 +44,7 @@ def start_downloads():
 
     def download_worker():
         global queue_pbar
-        gl.debug_print("Starting dynamic queue downloader.")
+        #gl.debug_print("Starting dynamic queue downloader.")
 
         # We'll create the queue-level TQDM with a 0 initial total.
         # dynamic_ncols=True can help TQDM properly size columns.
@@ -98,7 +98,7 @@ def do_download(item):
     """
     url = item["file_url"]
     filename = item["filename"]
-    gl.debug_print(f"Downloading from {url} -> {filename}")
+    #gl.debug_print(f"Downloading from {url} -> {filename}")
 
     try:
         r = requests.get(url, stream=True, timeout=60)
