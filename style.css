@@ -103,3 +103,11 @@
   .arcen_extension_download_btn:active {
     transform: scale(0.98);
   }
+.model_description pre,
+.model_description code {
+    /* Wrap text inside PRE/CODE instead of overflowing */
+    white-space: pre-wrap;      /* let text wrap */
+    word-wrap: break-word;      /* older name for break-word logic */
+    overflow-wrap: break-word;  /* ensure wrapped lines if very long words */
+    max-width: 100%;            /* do not exceed container width */
+}
