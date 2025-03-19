@@ -24,7 +24,7 @@ def queue_download(model_id, version_id, file_url, filename):
         "filename": filename,
     }
     gl.download_queue.append(item)
-    gl.debug_print(f"Queued download: {item}")
+    #gl.debug_print(f"Queued download: {item}")
 
     # If we already have a queue_pbar, increment its total by 1
     with queue_pbar_lock:
@@ -44,7 +44,7 @@ def start_downloads():
 
     def download_worker():
         global queue_pbar
-        gl.debug_print("Starting dynamic queue downloader.")
+        #gl.debug_print("Starting dynamic queue downloader.")
 
         # We'll create the queue-level TQDM with a 0 initial total.
         # dynamic_ncols=True can help TQDM properly size columns.
@@ -62,7 +62,7 @@ def start_downloads():
             # Now loop while queue has items or we haven't been canceled
             while True:
                 if gl.cancel_status:
-                    gl.debug_print("Download canceled globally.")
+                    #gl.debug_print("Download canceled globally.")
                     break
 
                 # If queue is empty, check if we might be done
@@ -83,7 +83,7 @@ def start_downloads():
                 pbar.update(1)
 
             # end while
-            gl.debug_print("All downloads finished or canceled.")
+            #gl.debug_print("All downloads finished or canceled.")
             gl.isDownloading = False
             # Reset queue_pbar to None
             with queue_pbar_lock:
@@ -98,7 +98,7 @@ def do_download(item):
     """
     url = item["file_url"]
     filename = item["filename"]
-    gl.debug_print(f"Downloading from {url} -> {filename}")
+    #gl.debug_print(f"Downloading from {url} -> {filename}")
 
     try:
         r = requests.get(url, stream=True, timeout=60)
@@ -122,12 +122,12 @@ def do_download(item):
         ) as pbar:
             for chunk in r.iter_content(chunk_size=chunk_size):
                 if gl.cancel_status:
-                    gl.debug_print("Download canceled mid-file.")
+                    #gl.debug_print("Download canceled mid-file.")
                     return
                 f.write(chunk)
                 pbar.update(len(chunk))
 
-        gl.debug_print(f"Download completed: {filename}")
+        #gl.debug_print(f"Download completed: {filename}")
     except Exception as e:
         gl.debug_print(f"Failed to download {filename}: {e}")
 
@@ -135,6 +135,6 @@ def cancel_all_downloads():
     """
     Set cancel_status, empty the queue, so we stop everything.
     """
-    gl.debug_print("Canceling all downloads.")
+    #gl.debug_print("Canceling all downloads.")
     gl.cancel_status = True
     gl.download_queue.clear()

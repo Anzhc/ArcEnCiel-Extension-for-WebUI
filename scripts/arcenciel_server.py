@@ -19,7 +19,7 @@ def ensure_server_routes(app: FastAPI):
         return  # Already set up routes in this session
     route_registered = True
 
-    gl.debug_print("[ArcEnCiel] ensure_server_routes => registering routes")
+    #gl.debug_print("[ArcEnCiel] ensure_server_routes => registering routes")
 
     @app.get("/arcenciel/ping")
     def ping_route():
@@ -34,7 +34,7 @@ def ensure_server_routes(app: FastAPI):
         url = data.get("url")
         file_name = data.get("file_name", "UnknownFile")
 
-        gl.debug_print(f"[ArcEnCiel] Received extension download request => {data}")
+        #gl.debug_print(f"[ArcEnCiel] Received extension download request => {data}")
 
         if not url:
             return {"error": "No url provided."}
@@ -48,7 +48,7 @@ def ensure_server_routes(app: FastAPI):
         final_url = url
         if "arcenciel.io" in url.lower() and model_id and version_id:
             final_url = f"https://arcenciel.io/api/models/{model_id}/versions/{version_id}/download"
-            gl.debug_print(f"[ArcEnCiel] Using official route => {final_url}")
+            #gl.debug_print(f"[ArcEnCiel] Using official route => {final_url}")
 
         dl.queue_download(model_id, version_id, final_url, local_path)
         dl.start_downloads()
@@ -57,7 +57,7 @@ def ensure_server_routes(app: FastAPI):
 
     @app.get("/arcenciel/model_details/{model_id}")
     def arcenciel_model_details_route(model_id: int):
-        gl.debug_print(f"[ArcEnCiel] Fetching details for model {model_id}")
+        #gl.debug_print(f"[ArcEnCiel] Fetching details for model {model_id}")
         data = api.fetch_model_details(model_id)
         if "error" in data:
             return Response(content=f"<div>Error: {data['error']}</div>", media_type="text/html")
@@ -66,7 +66,7 @@ def ensure_server_routes(app: FastAPI):
 
     @app.get("/arcenciel/image_details/{image_id}")
     def arcenciel_image_details_route(image_id: int):
-        gl.debug_print(f"[ArcEnCiel] Fetching details for image {image_id}")
+        #gl.debug_print(f"[ArcEnCiel] Fetching details for image {image_id}")
         img_data = api.fetch_image_details(image_id)
         if "error" in img_data:
             return Response(content=f"<div>Error: {img_data['error']}</div>", media_type="text/html")

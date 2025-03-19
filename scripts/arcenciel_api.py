@@ -14,13 +14,13 @@ def request_arc_api(endpoint="", params=None):
     if not params:
         params = {}
     url = f"{ARC_API_BASE}{endpoint}"
-    gl.debug_print("request_arc_api ->", url, params)
+    #gl.debug_print("request_arc_api ->", url, params)
     try:
         r = requests.get(url, params=params, timeout=20)
         r.raise_for_status()
         return r.json()
     except requests.RequestException as e:
-        gl.debug_print("ArcEnCiel API error:", e)
+        #gl.debug_print("ArcEnCiel API error:", e)
         return {"error": str(e)}
 
 def search_models(search_term="", sort="newest", page=1, limit=12, base_model="", model_type=""):

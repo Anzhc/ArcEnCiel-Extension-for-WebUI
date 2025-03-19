@@ -247,8 +247,8 @@ def do_search_and_download(query, sort_value, page, base_model, model_type):
     Return a generator that yields updated HTML each time a new thumbnail finishes.
     We now accept base_model and model_type, ignoring them if they are "Any".
     """
-    gl.debug_print("Search => user query:", query, "sort:", sort_value,
-                   "page:", page, "base_model:", base_model, "model_type:", model_type)
+    #gl.debug_print("Search => user query:", query, "sort:", sort_value,
+    #               "page:", page, "base_model:", base_model, "model_type:", model_type)
 
     # Convert page to int if needed
     try:
@@ -297,7 +297,7 @@ def do_search_and_download(query, sort_value, page, base_model, model_type):
                 data_url = fut.result()
                 if data_url:
                     id_to_item[m_id]["preview_local"] = data_url
-                    gl.debug_print(f"Got data_url for model {m_id}, len={len(data_url)}")
+                    #gl.debug_print(f"Got data_url for model {m_id}, len={len(data_url)}")
                 done_this_round.append((m_id, fut))
 
         if done_this_round:
@@ -308,7 +308,7 @@ def do_search_and_download(query, sort_value, page, base_model, model_type):
         if unfinished:
             time.sleep(0.25)
 
-    gl.debug_print("All previews completed for this search.")
+    #gl.debug_print("All previews completed for this search.")
 
 def save_paths_ui(lora_path, checkpoint_path, vae_path, embedding_path, segmentation_path, other_path):
     """
@@ -316,7 +316,7 @@ def save_paths_ui(lora_path, checkpoint_path, vae_path, embedding_path, segmenta
     We'll pass these path values to path_utils.save_paths(...)
     Then return a success message.
     """
-    gl.debug_print("Saving path presets from UI...")
+    #gl.debug_print("Saving path presets from UI...")
 
     # We map them back to the known keys used in arcenciel_paths.KNOWN_TYPES
     kwargs = {
