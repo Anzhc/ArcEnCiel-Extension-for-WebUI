@@ -30,6 +30,6 @@ def save_model_info(model_id, version_id, local_json_path, extra_data=None):
     try:
         with open(local_json_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4)
-        #gl.debug_print(f"Saved model info: {local_json_path}")
+        gl.debug_print(f"Saved model info: {local_json_path}")
     except Exception as e:
         gl.debug_print(f"Could not save model info: {e}")

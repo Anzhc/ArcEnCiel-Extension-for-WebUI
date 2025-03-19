@@ -1,7 +1,6 @@
 # scripts/arcenciel_api.py
 import requests
 import os
-import pathlib
 import scripts.arcenciel_global as gl
 from scripts.arcenciel_global import debug_print
 import base64
@@ -10,16 +9,12 @@ ARC_API_BASE = "https://arcenciel.io/api"
 # Base URL for image files (remove the "/api" part)
 THUMBNAIL_BASE_URL = "https://arcenciel.io/uploads"
 
-# Temporary directory for preview images
-TEMP_PREVIEWS_DIR = pathlib.Path(__file__).resolve().parents[1] / "temp_previews"
-os.makedirs(TEMP_PREVIEWS_DIR, exist_ok=True)
-
 def request_arc_api(endpoint="", params=None):
     """Generic GET to ArcEnCiel, returns dict or error info."""
     if not params:
         params = {}
     url = f"{ARC_API_BASE}{endpoint}"
-    #gl.debug_print("request_arc_api ->", url, params)
+    gl.debug_print("request_arc_api ->", url, params)
     try:
         r = requests.get(url, params=params, timeout=20)
         r.raise_for_status()
@@ -70,14 +65,14 @@ def download_preview_image(model_item):
             if file_path:
                 file_base, _ = os.path.splitext(file_path.lstrip("/"))
                 thumbnail_url = f"{THUMBNAIL_BASE_URL}/{file_base}.thumbnail.webp"
-                #debug_print("Downloading preview from:", thumbnail_url)
+                debug_print("Downloading preview from:", thumbnail_url)
                 try:
                     r = requests.get(thumbnail_url, timeout=20)
                     r.raise_for_status()
                     content = r.content
                     encoded = base64.b64encode(content).decode("utf-8")
                     data_url = f"data:image/webp;base64,{encoded}"
-                    #debug_print("Returning data URL (length:", len(data_url), ")")
+                    debug_print("Returning data URL (length:", len(data_url), ")")
                     return data_url
                 except Exception as e:
                     debug_print("Error downloading preview:", e)

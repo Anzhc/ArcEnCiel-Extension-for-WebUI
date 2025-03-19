@@ -2,6 +2,7 @@ import gradio as gr
 import time
 import requests
 from modules import shared
+import os
 
 import scripts.arcenciel_api as api
 import scripts.arcenciel_global as gl
@@ -118,7 +119,8 @@ def build_model_details_html(model_data):
         for img_item in gallery_items:
             img_id = img_item.get("id", "")
             file_path = (img_item.get("filePath") or "").lstrip("/")
-            img_url = f"https://arcenciel.io/uploads/{file_path}" if file_path else PLACEHOLDER_IMG
+            file_base, _ = os.path.splitext(file_path.lstrip("/"))
+            img_url = f"https://arcenciel.io/uploads//{file_base}.thumbnail.webp" if file_path else PLACEHOLDER_IMG
             html += f"""
             <div class='arcen_gallery_item' data-image-id="{img_id}" style="cursor:pointer;">
               <img src='{img_url}' alt='gallery item' style="max-width:100px;"/>
@@ -295,7 +297,7 @@ def do_search_and_download(query, sort_value, page, base_model, model_type):
                 data_url = fut.result()
                 if data_url:
                     id_to_item[m_id]["preview_local"] = data_url
-                    #gl.debug_print(f"Got data_url for model {m_id}, len={len(data_url)}")
+                    gl.debug_print(f"Got data_url for model {m_id}, len={len(data_url)}")
                 done_this_round.append((m_id, fut))
 
         if done_this_round:
@@ -306,7 +308,7 @@ def do_search_and_download(query, sort_value, page, base_model, model_type):
         if unfinished:
             time.sleep(0.25)
 
-    #gl.debug_print("All previews completed for this search.")
+    gl.debug_print("All previews completed for this search.")
 
 def save_paths_ui(lora_path, checkpoint_path, vae_path, embedding_path, segmentation_path, other_path):
     """
@@ -314,7 +316,7 @@ def save_paths_ui(lora_path, checkpoint_path, vae_path, embedding_path, segmenta
     We'll pass these path values to path_utils.save_paths(...)
     Then return a success message.
     """
-    #gl.debug_print("Saving path presets from UI...")
+    gl.debug_print("Saving path presets from UI...")
 
     # We map them back to the known keys used in arcenciel_paths.KNOWN_TYPES
     kwargs = {
@@ -332,7 +334,7 @@ def on_ui_tabs():
     global already_created_tab
 
     if not already_created_tab:
-        #print("[ArcEnCiel] on_ui_tabs() called first time...")
+        print("[ArcEnCiel] on_ui_tabs() called first time...")
         already_created_tab = True
     else:
         print("[ArcEnCiel] on_ui_tabs() called AGAIN, skipping duplicate UI mention...")
@@ -352,13 +354,13 @@ def on_ui_tabs():
         else:
             raise RuntimeError(f"Ping responded with {r.status_code}")
     except Exception as e:
-        #print(f"[ArcEnCiel] /arcenciel/ping failed => re-registering routes. Error: {e}")
+        print(f"[ArcEnCiel] /arcenciel/ping failed => re-registering routes. Error: {e}")
         server.route_registered = False
         server.ensure_server_routes
 
     # Load the path presets from file
     path_presets = path_utils.load_paths()
-    #print("[ArcEnCiel] loaded path_presets:", path_presets)
+    print("[ArcEnCiel] loaded path_presets:", path_presets)
     # path_presets is a dict with keys: LORA, CHECKPOINT, VAE, EMBEDDING, SEGMENTATION, OTHER
 
     with gr.Blocks(elem_id="arcencielTab") as arcenciel_interface:
