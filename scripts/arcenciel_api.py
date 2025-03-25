@@ -65,14 +65,14 @@ def download_preview_image(model_item):
             if file_path:
                 file_base, _ = os.path.splitext(file_path.lstrip("/"))
                 thumbnail_url = f"{THUMBNAIL_BASE_URL}/{file_base}.thumbnail.webp"
-                debug_print("Downloading preview from:", thumbnail_url)
+                #debug_print("Downloading preview from:", thumbnail_url)
                 try:
                     r = requests.get(thumbnail_url, timeout=20)
                     r.raise_for_status()
                     content = r.content
                     encoded = base64.b64encode(content).decode("utf-8")
                     data_url = f"data:image/webp;base64,{encoded}"
-                    debug_print("Returning data URL (length:", len(data_url), ")")
+                    #debug_print("Returning data URL (length:", len(data_url), ")")
                     return data_url
                 except Exception as e:
                     debug_print("Error downloading preview:", e)

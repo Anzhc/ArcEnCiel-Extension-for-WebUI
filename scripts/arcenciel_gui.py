@@ -15,20 +15,12 @@ PLACEHOLDER_IMG = "https://via.placeholder.com/150"
 already_created_tab = False
 
 def build_image_details_html(img_data):
-    """
-    Build HTML for a single image in a 2-column layout:
-      - Left: image preview
-      - Right: metadata
-    """
     if not img_data or "id" not in img_data:
         return "<div>No image data found.</div>"
 
     image_id = img_data.get("id", "")
     file_path = (img_data.get("filePath") or "").lstrip("/")
-    if file_path:
-        full_url = f"https://arcenciel.io/uploads/{file_path}"
-    else:
-        full_url = "https://via.placeholder.com/400"  # fallback
+    full_url = f"https://arcenciel.io/uploads/{file_path}" if file_path else "https://via.placeholder.com/400"
 
     prompt = img_data.get("prompt", "")
     neg_prompt = img_data.get("negativePrompt", "")
@@ -41,12 +33,9 @@ def build_image_details_html(img_data):
     <div style="padding:1em;">
       <h3>Image ID: {image_id}</h3>
       <div style="display:flex; gap:1em;">
-        <!-- Left Column: the image -->
         <div style="flex:1; min-width:200px;">
           <img src="{full_url}" style="max-width:100%; border:1px solid #444;"/>
         </div>
-        
-        <!-- Right Column: metadata -->
         <div style="flex:1; min-width:200px;">
           <div><b>Prompt:</b><br/>{prompt}</div>
           <div style="margin-top:0.5em;"><b>Negative Prompt:</b><br/>{neg_prompt}</div>
@@ -61,24 +50,17 @@ def build_image_details_html(img_data):
     return html
 
 def build_model_details_html(model_data):
-    """
-    Builds HTML for the entire model detail page, including two "download" buttons
-    in each version block:
-      1) A direct link (anchor)
-      2) A "Download with Extension" button that we can wire to custom logic in JS.
-    """
     if not model_data or "id" not in model_data:
         return "<div>Empty or invalid model data.</div>"
 
     model_id = model_data.get("id", "")
     title = model_data.get("title", "Unknown Title")
     desc = model_data.get("description", "No description available.")
-    model_type = model_data.get("type", "Unknown Type")  # the model's overall type
+    model_type = model_data.get("type", "Unknown Type")
     tags = model_data.get("tags", [])
     uploader = model_data.get("uploader", {})
     versions = model_data.get("versions", [])
 
-    # Attempt official gallery, fallback to pinned, fallback to version images...
     gallery_resp = api.get_model_gallery(model_id)
     gallery_items = gallery_resp.get("data", []) or []
     if not gallery_items:
@@ -93,13 +75,10 @@ def build_model_details_html(model_data):
         if all_ver_imgs:
             gallery_items = all_ver_imgs
 
-    # Start building page with two columns
     html = """
 <div class='arcen_model_detail_container' style='display:flex; gap:1em;'>
-  <!-- LEFT COLUMN -->
   <div style='flex:1; min-width:300px;'>
 """
-    # Left column: basic model info
     html += f"<h2>{title} (ID: {model_id})</h2>"
     html += f"<div>Type: {model_type}</div>"
 
@@ -126,7 +105,7 @@ def build_model_details_html(model_data):
               <img src='{img_url}' alt='gallery item' style="max-width:100px;"/>
             </div>
             """
-    html += "</div>"  # end gallery
+    html += "</div>"
 
     # Versions
     html += "<h3>Versions</h3>"
@@ -140,23 +119,14 @@ def build_model_details_html(model_data):
             base_model = ver.get("baseModel", "Unknown base")
             activation_tags = ver.get("activationTags", [])
             file_name = ver.get("fileName", "")
-
-            # If there's an externalDownloadUrl, it's presumably huggingface or some external link.
             external_url = ver.get("externalDownloadUrl")
 
-            # We'll ignore file_path for the direct link, 
-            # and instead rely on the official ArcEnCiel /api/... route 
-            # if there's no externalUrl.
-            # So basically:
-            #   direct_link = external_url if available
-            #   else => arcenciel official route
+            # direct_link logic
             if external_url:
                 direct_link = external_url
             else:
-                # use official route
                 direct_link = f"https://arcenciel.io/api/models/{model_id}/versions/{v_id}/download"
 
-            # If no file_name, parse from external_url or fallback
             if not file_name:
                 if external_url:
                     import urllib.parse
@@ -166,7 +136,6 @@ def build_model_details_html(model_data):
                 if not file_name:
                     file_name = "Unknown file"
 
-            # Start building the version block
             html += "<div class='version_block' style='margin-bottom:1em; border:1px solid #444; padding:0.5em'>"
             html += f"<b>Version ID:</b> {v_id} | <b>Name:</b> {v_name}<br/>"
             html += f"<b>Base Model:</b> {base_model}<br/>"
@@ -177,7 +146,7 @@ def build_model_details_html(model_data):
             if about:
                 html += f"<div><b>Notes:</b> {about}</div>"
 
-            # "Download (Browser)" => an <a> styled like a button, pointing to direct_link
+            # Download (Browser) anchor
             html += f"""
             <a 
             href="{direct_link}" 
@@ -188,23 +157,23 @@ def build_model_details_html(model_data):
             </a>
             """
 
-            # Also add the "Download with Extension" button if you wish:
+            # Download with Extension button
             html += f"""
             <button 
             class='arcen_extension_download_btn' 
             data-model-id="{model_id}"
             data-version-id="{v_id}"
             data-model-type="{model_type}"
-            data-download-url="{direct_link}"  /* use the same direct_link for extension-based or let extension override */
+            data-download-url="{direct_link}"
             data-file-name="{file_name}"
             style="margin-top:0.5em;">
                 Download with Extension
             </button>
             """
 
-            html += "</div>"  # end version_block
+            html += "</div>"
 
-    # Right column placeholder
+    # Right column placeholder for gallery image details
     html += """
   </div>
   <div style='flex:1; min-width:300px;' id='arcen_image_details_panel'>
@@ -216,13 +185,34 @@ def build_model_details_html(model_data):
     """
     return html
 
+def build_gallery_html(data_list, total_pages=1, card_scale=30):
+    """
+    card_scale is in 'em'. We'll do height ~1.5 * width to keep 2:3 ratio.
+    """
+    width_em = card_scale
+    height_em = round(card_scale * 1.5)
 
-def build_gallery_html(data_list, total_pages=1):
-    """
-    Builds the search results gallery (the main search page).
-    """
-    html = f"<div>Total pages: {total_pages}</div>"
+    style_override = f"""
+<style>
+.arcen_model_card {{
+    position: relative;
+    width: {width_em}em;
+    height: {height_em}em;
+    background: #333;
+    border-radius: 8px;
+    color: #fafafa;
+    overflow: hidden;
+    cursor: pointer;
+    text-align: center;
+    transition: transform 0.2s;
+    box-sizing: border-box;
+}}
+</style>
+"""
+    html = style_override
+    html += f"<div>Total pages: {total_pages}</div>"
     html += "<div class='arcen_model_list'>"
+
     for item in data_list:
         m_id = item.get("id", "N/A")
         title = item.get("title", "Untitled")
@@ -242,21 +232,12 @@ def build_gallery_html(data_list, total_pages=1):
     html += "</div>"
     return html
 
-def do_search_and_download(query, sort_value, page, base_model, model_type):
-    """
-    Return a generator that yields updated HTML each time a new thumbnail finishes.
-    We now accept base_model and model_type, ignoring them if they are "Any".
-    """
-    #gl.debug_print("Search => user query:", query, "sort:", sort_value,
-    #               "page:", page, "base_model:", base_model, "model_type:", model_type)
-
-    # Convert page to int if needed
+def do_search_and_download(query, sort_value, page, base_model, model_type, card_scale, model_limit):
     try:
         page_int = int(page)
     except:
         page_int = 1
 
-    # If the user selected "Any", pass empty strings
     if base_model == "Any":
         base_model = ""
     if model_type == "Any":
@@ -266,7 +247,7 @@ def do_search_and_download(query, sort_value, page, base_model, model_type):
         search_term=query,
         sort=sort_value,
         page=page_int,
-        limit=8,
+        limit=model_limit,
         base_model=base_model,
         model_type=model_type
     )
@@ -281,15 +262,16 @@ def do_search_and_download(query, sort_value, page, base_model, model_type):
         id_to_item[item["id"]] = item
 
     total_pages = resp.get("totalPages", 1)
-    yield build_gallery_html(data_list, total_pages)
+    yield build_gallery_html(data_list, total_pages, card_scale)
 
-    # Start parallel thumbnail downloads
+    # Parallel downloads of previews
     unfinished = set()
     for item in data_list:
         m_id = item["id"]
         fut = gl.executor.submit(api.download_preview_image, item)
         unfinished.add((m_id, fut))
 
+    import time
     while unfinished:
         done_this_round = []
         for (m_id, fut) in list(unfinished):
@@ -297,28 +279,17 @@ def do_search_and_download(query, sort_value, page, base_model, model_type):
                 data_url = fut.result()
                 if data_url:
                     id_to_item[m_id]["preview_local"] = data_url
-                    #gl.debug_print(f"Got data_url for model {m_id}, len={len(data_url)}")
                 done_this_round.append((m_id, fut))
 
         if done_this_round:
             for pair in done_this_round:
                 unfinished.remove(pair)
-            yield build_gallery_html(data_list, total_pages)
+            yield build_gallery_html(data_list, total_pages, card_scale)
 
         if unfinished:
             time.sleep(0.25)
 
-    #gl.debug_print("All previews completed for this search.")
-
 def save_paths_ui(lora_path, checkpoint_path, vae_path, embedding_path, segmentation_path, other_path):
-    """
-    This function is called by the "Save" button in the UI.
-    We'll pass these path values to path_utils.save_paths(...)
-    Then return a success message.
-    """
-    #gl.debug_print("Saving path presets from UI...")
-
-    # We map them back to the known keys used in arcenciel_paths.KNOWN_TYPES
     kwargs = {
         "LORA": lora_path,
         "CHECKPOINT": checkpoint_path,
@@ -328,7 +299,7 @@ def save_paths_ui(lora_path, checkpoint_path, vae_path, embedding_path, segmenta
         "OTHER": other_path,
     }
     msg = path_utils.save_paths(**kwargs)
-    return msg  # We'll show this in a gr.Textbox or gr.Label
+    return msg
 
 def on_ui_tabs():
     global already_created_tab
@@ -339,11 +310,7 @@ def on_ui_tabs():
     else:
         print("[ArcEnCiel] on_ui_tabs() called AGAIN, skipping duplicate UI mention...")
 
-    # Instead of shared.state.server_port, we use shared.cmd_opts.port
-    # If none is specified, default to 7860
     port = shared.cmd_opts.port or 7860
-
-    # Build the ping URL
     base_url = f"http://127.0.0.1:{port}"
     ping_url = f"{base_url}/arcenciel/ping"
 
@@ -358,10 +325,9 @@ def on_ui_tabs():
         server.route_registered = False
         server.ensure_server_routes
 
-    # Load the path presets from file
+    # Load path presets
     path_presets = path_utils.load_paths()
     print("[ArcEnCiel] loaded path_presets:", path_presets)
-    # path_presets is a dict with keys: LORA, CHECKPOINT, VAE, EMBEDDING, SEGMENTATION, OTHER
 
     with gr.Blocks(elem_id="arcencielTab") as arcenciel_interface:
         gr.Markdown("## ArcEnCiel Browser (Parallel Download)")
@@ -399,6 +365,46 @@ def on_ui_tabs():
                 value="Any"
             )
 
+            # The "gear" icon
+            settings_button = gr.HTML(
+                """<button id="arcenciel_settings_button" 
+                           style="font-size:1.2em; margin-top:22px; cursor:pointer;">
+                    ⚙️
+                   </button>""",
+                elem_id="arcenciel_settings_icon"
+            )
+
+        # Inject some CSS to style the popup
+        gr.HTML("""
+        <style>
+        #arcenciel_settings_popup {
+            display: none;  /* hidden by default */
+            position: absolute;
+            top: 60px;      /* adjust as needed */
+            right: 10px;
+            padding: 1em;
+            background: #222;
+            border: 1px solid #555;
+            border-radius: 8px;
+            z-index: 999;
+            width: 280px;   /* optional width */
+        }
+        </style>
+        """, elem_id="arcenciel_settings_popup_style_inject")
+
+        # A Group that becomes our "popup" container
+        with gr.Group(elem_id="arcenciel_settings_popup", visible=True):
+            gr.Markdown("**Settings**", elem_id="arcen_settings_title")
+            card_scale_slider = gr.Slider(
+                label="Model Card Width (em)",
+                minimum=5, maximum=50, step=1, value=30,
+                elem_id="arcenciel_card_scale_slider"
+            )
+            model_limit_slider = gr.Slider(
+                label="Models per Page",
+                minimum=1, maximum=20, step=1, value=8
+            )
+
         fetch_download_btn = gr.Button("Search & Download")
 
         results_html = gr.HTML("<div style='text-align:center;'>No results yet</div>",
@@ -406,20 +412,23 @@ def on_ui_tabs():
         model_details_html = gr.HTML("<div>Select a card to see model details</div>",
                                      elem_id="arcenciel_model_details_html")
 
-        # Attach the search function
+        # Hook up the search function
         fetch_download_btn.click(
             fn=do_search_and_download,
-            inputs=[search_term, sort_box, page_box, base_model_box, model_type_box],
+            inputs=[
+                search_term, sort_box, page_box,
+                base_model_box, model_type_box,
+                card_scale_slider, model_limit_slider
+            ],
             outputs=[results_html],
             queue=True
         )
 
-        # Now add an Accordion for the "Path Presets"
+        # Path Presets
         with gr.Accordion("Path Presets (for future downloads)", open=False):
             gr.Markdown("Here you can set default download paths for each model type. "
                         "They will be saved in 'save_paths.txt' so they persist across restarts.")
 
-            # We'll create a row of textboxes or you can stack them vertically
             lora_t = gr.Textbox(label="LORA path", value=path_presets["LORA"])
             cpt_t = gr.Textbox(label="CHECKPOINT path", value=path_presets["CHECKPOINT"])
             vae_t = gr.Textbox(label="VAE path", value=path_presets["VAE"])
@@ -434,11 +443,8 @@ def on_ui_tabs():
             )
 
             save_paths_btn = gr.Button("Save Paths")
-
-            # This output will show the "Paths saved successfully." message
             save_status = gr.Textbox(label="Save status", value="", interactive=False)
 
-            # When user clicks "Save Paths", we call save_paths_ui(...)
             save_paths_btn.click(
                 fn=save_paths_ui,
                 inputs=[lora_t, cpt_t, vae_t, emb_t, seg_t, oth_t],
