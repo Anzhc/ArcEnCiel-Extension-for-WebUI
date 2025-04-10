@@ -329,7 +329,7 @@ def on_ui_tabs():
     path_presets = path_utils.load_paths()
     print("[ArcEnCiel] loaded path_presets:", path_presets)
 
-    with gr.Blocks(elem_id="arcencielTab") as arcenciel_interface:
+    with gr.Blocks(elem_id="arcencielTab", concurrency_limit=4) as arcenciel_interface:
         gr.Markdown("## ArcEnCiel Browser (Parallel Download)")
 
         with gr.Row():
@@ -405,7 +405,7 @@ def on_ui_tabs():
                 minimum=1, maximum=20, step=1, value=8
             )
 
-        fetch_download_btn = gr.Button("Search & Download")
+        fetch_download_btn = gr.Button(label="Search & Download", concurrency_limit=10)
 
         results_html = gr.HTML("<div style='text-align:center;'>No results yet</div>",
                                elem_id="arcenciel_results_html")
@@ -421,7 +421,7 @@ def on_ui_tabs():
                 card_scale_slider, model_limit_slider
             ],
             outputs=[results_html],
-            queue=True
+            queue=True,
         )
 
         # Path Presets
@@ -452,5 +452,5 @@ def on_ui_tabs():
                 queue=False
             )
 
-    arcenciel_interface.queue(concurrency_count=4, max_size=16)
+    arcenciel_interface.queue(max_size=100)
     return [(arcenciel_interface, "ArcEnCiel Browser", "arcenciel_tab")]
