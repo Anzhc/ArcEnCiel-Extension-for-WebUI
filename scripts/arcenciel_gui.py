@@ -329,7 +329,7 @@ def on_ui_tabs():
     path_presets = path_utils.load_paths()
     print("[ArcEnCiel] loaded path_presets:", path_presets)
 
-    with gr.Blocks(elem_id="arcencielTab", concurrency_limit=4) as arcenciel_interface:
+    with gr.Blocks(elem_id="arcencielTab") as arcenciel_interface:
         gr.Markdown("## ArcEnCiel Browser (Parallel Download)")
 
         with gr.Row():
