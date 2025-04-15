@@ -14,13 +14,24 @@ PLACEHOLDER_IMG = "https://via.placeholder.com/150"
 
 already_created_tab = False
 
+
+##########################
+# Utility / HTML Builders
+##########################
+
 def build_image_details_html(img_data):
+    """
+    Renders image details in HTML.
+    """
     if not img_data or "id" not in img_data:
         return "<div>No image data found.</div>"
 
     image_id = img_data.get("id", "")
     file_path = (img_data.get("filePath") or "").lstrip("/")
-    full_url = f"https://arcenciel.io/uploads/{file_path}" if file_path else "https://via.placeholder.com/400"
+    if file_path:
+        full_url = f"https://arcenciel.io/uploads/{file_path}"
+    else:
+        full_url = "https://via.placeholder.com/400"
 
     prompt = img_data.get("prompt", "")
     neg_prompt = img_data.get("negativePrompt", "")
@@ -50,6 +61,9 @@ def build_image_details_html(img_data):
     return html
 
 def build_model_details_html(model_data):
+    """
+    Renders model details in a 2-column layout with gallery and version info.
+    """
     if not model_data or "id" not in model_data:
         return "<div>Empty or invalid model data.</div>"
 
@@ -61,6 +75,7 @@ def build_model_details_html(model_data):
     uploader = model_data.get("uploader", {})
     versions = model_data.get("versions", [])
 
+    # Attempt official gallery, fallback to pinned, fallback to version images...
     gallery_resp = api.get_model_gallery(model_id)
     gallery_items = gallery_resp.get("data", []) or []
     if not gallery_items:
@@ -173,7 +188,7 @@ def build_model_details_html(model_data):
 
             html += "</div>"
 
-    # Right column placeholder for gallery image details
+    # Right column placeholder
     html += """
   </div>
   <div style='flex:1; min-width:300px;' id='arcen_image_details_panel'>
@@ -187,30 +202,12 @@ def build_model_details_html(model_data):
 
 def build_gallery_html(data_list, total_pages=1, card_scale=30):
     """
-    card_scale is in 'em'. We'll do height ~1.5 * width to keep 2:3 ratio.
+    Builds the main search results gallery. 
+    Note: 'card_scale' is not injected as inline CSS here.
+    The .arcen_model_card is defined in external style_html.css.
     """
-    width_em = card_scale
-    height_em = round(card_scale * 1.5)
-
-    style_override = f"""
-<style>
-.arcen_model_card {{
-    position: relative;
-    width: {width_em}em;
-    height: {height_em}em;
-    background: #333;
-    border-radius: 8px;
-    color: #fafafa;
-    overflow: hidden;
-    cursor: pointer;
-    text-align: center;
-    transition: transform 0.2s;
-    box-sizing: border-box;
-}}
-</style>
-"""
-    html = style_override
-    html += f"<div>Total pages: {total_pages}</div>"
+    # Show total pages
+    html = f"<div>Total pages: {total_pages}</div>"
     html += "<div class='arcen_model_list'>"
 
     for item in data_list:
@@ -232,7 +229,15 @@ def build_gallery_html(data_list, total_pages=1, card_scale=30):
     html += "</div>"
     return html
 
+
+############################
+# Search Workflow
+############################
+
 def do_search_and_download(query, sort_value, page, base_model, model_type, card_scale, model_limit):
+    """
+    Called for manual "Search" or after changing pages.
+    """
     try:
         page_int = int(page)
     except:
@@ -262,9 +267,10 @@ def do_search_and_download(query, sort_value, page, base_model, model_type, card
         id_to_item[item["id"]] = item
 
     total_pages = resp.get("totalPages", 1)
+    # yield initial HTML
     yield build_gallery_html(data_list, total_pages, card_scale)
 
-    # Parallel downloads of previews
+    # Download previews in parallel
     unfinished = set()
     for item in data_list:
         m_id = item["id"]
@@ -289,6 +295,29 @@ def do_search_and_download(query, sort_value, page, base_model, model_type, card
         if unfinished:
             time.sleep(0.25)
 
+#################################
+# Page Up / Page Down Functions
+#################################
+
+def prev_page(current_page):
+    """
+    Decrement page number if > 1, otherwise stay at 1.
+    """
+    p = int(current_page)
+    if p > 1:
+        return p - 1
+    return 1
+
+def next_page(current_page):
+    """
+    Increment page number unconditionally.
+    """
+    return int(current_page) + 1
+
+###################
+# Path-saving logic
+###################
+
 def save_paths_ui(lora_path, checkpoint_path, vae_path, embedding_path, segmentation_path, other_path):
     kwargs = {
         "LORA": lora_path,
@@ -300,6 +329,10 @@ def save_paths_ui(lora_path, checkpoint_path, vae_path, embedding_path, segmenta
     }
     msg = path_utils.save_paths(**kwargs)
     return msg
+
+##################################
+# Main UI callback
+##################################
 
 def on_ui_tabs():
     global already_created_tab
@@ -329,9 +362,11 @@ def on_ui_tabs():
     path_presets = path_utils.load_paths()
     print("[ArcEnCiel] loaded path_presets:", path_presets)
 
-    with gr.Blocks(elem_id="arcencielTab") as arcenciel_interface:
+    # Notice we specify css="style_html.css" to load external stylesheet
+    with gr.Blocks(elem_id="arcencielTab", css="style_html.css") as arcenciel_interface:
         gr.Markdown("## ArcEnCiel Browser (Parallel Download)")
 
+        # 1) Row for main search settings
         with gr.Row():
             search_term = gr.Textbox(label="Search models", placeholder="Enter query...")
             page_box = gr.Number(label="Page #", value=1, precision=0)
@@ -364,7 +399,6 @@ def on_ui_tabs():
                 ],
                 value="Any"
             )
-
             # The "gear" icon
             settings_button = gr.HTML(
                 """<button id="arcenciel_settings_button" 
@@ -374,25 +408,14 @@ def on_ui_tabs():
                 elem_id="arcenciel_settings_icon"
             )
 
-        # Inject some CSS to style the popup
-        gr.HTML("""
-        <style>
-        #arcenciel_settings_popup {
-            display: none;  /* hidden by default */
-            position: absolute;
-            top: 60px;      /* adjust as needed */
-            right: 10px;
-            padding: 1em;
-            background: #222;
-            border: 1px solid #555;
-            border-radius: 8px;
-            z-index: 999;
-            width: 280px;   /* optional width */
-        }
-        </style>
-        """, elem_id="arcenciel_settings_popup_style_inject")
+        # 2) Row for Prev / Search / Next (with minimal inline styles removed)
+        with gr.Row(elem_id="arcen_run_row"):
+            prev_btn = gr.Button("Previous Page", elem_id="arcen_prev_btn", variant="secondary")
+            fetch_download_btn = gr.Button("Search", concurrency_limit=20, elem_id="arcen_run_btn")
+            next_btn = gr.Button("Next Page", elem_id="arcen_next_btn", variant="secondary")
 
-        # A Group that becomes our "popup" container
+        # 3) The popup for card scaling / model limit
+        #    We rely on style_html.css for the #arcenciel_settings_popup
         with gr.Group(elem_id="arcenciel_settings_popup", visible=True):
             gr.Markdown("**Settings**", elem_id="arcen_settings_title")
             card_scale_slider = gr.Slider(
@@ -405,14 +428,13 @@ def on_ui_tabs():
                 minimum=1, maximum=20, step=1, value=8
             )
 
-        fetch_download_btn = gr.Button(label="Search & Download", concurrency_limit=10)
-
+        # 4) Results
         results_html = gr.HTML("<div style='text-align:center;'>No results yet</div>",
                                elem_id="arcenciel_results_html")
         model_details_html = gr.HTML("<div>Select a card to see model details</div>",
                                      elem_id="arcenciel_model_details_html")
 
-        # Hook up the search function
+        # 5) Hook up the "Search" button
         fetch_download_btn.click(
             fn=do_search_and_download,
             inputs=[
@@ -424,10 +446,41 @@ def on_ui_tabs():
             queue=True,
         )
 
-        # Path Presets
+        # 6) Prev page => do prev_page => do_search_and_download
+        prev_btn.click(
+            fn=prev_page,
+            inputs=[page_box],
+            outputs=[page_box]
+        ).then(
+            fn=do_search_and_download,
+            inputs=[
+                search_term, sort_box, page_box,
+                base_model_box, model_type_box,
+                card_scale_slider, model_limit_slider
+            ],
+            outputs=[results_html],
+            queue=True
+        )
+
+        # 7) Next page => do next_page => do_search_and_download
+        next_btn.click(
+            fn=next_page,
+            inputs=[page_box],
+            outputs=[page_box]
+        ).then(
+            fn=do_search_and_download,
+            inputs=[
+                search_term, sort_box, page_box,
+                base_model_box, model_type_box,
+                card_scale_slider, model_limit_slider
+            ],
+            outputs=[results_html],
+            queue=True
+        )
+
+        # 8) Path Presets
         with gr.Accordion("Path Presets (for future downloads)", open=False):
-            gr.Markdown("Here you can set default download paths for each model type. "
-                        "They will be saved in 'save_paths.txt' so they persist across restarts.")
+            gr.Markdown("Here you can set default download paths for each model type.")
 
             lora_t = gr.Textbox(label="LORA path", value=path_presets["LORA"])
             cpt_t = gr.Textbox(label="CHECKPOINT path", value=path_presets["CHECKPOINT"])

@@ -1,3 +1,24 @@
+/* --------------------------------------
+   style_html.css for ArcEnCiel extension
+   -------------------------------------- */
+
+/* Basic model-block styling (optional from your snippet) */
+.model-block {
+  padding: 1em;
+  border: 1px solid #444;
+  margin-bottom: 1em;
+  border-radius: 6px;
+}
+.model-block img, 
+.model-block video {
+  max-width: 100%;
+}
+.model-block code {
+  background: #272727;
+  padding: 3px 6px;
+  border-radius: 3px;
+}
+
 /* The container that holds multiple model cards in a grid-like layout */
 .arcen_model_list {
     display: flex;          /* make a flex container */
@@ -7,23 +28,20 @@
     margin: 1em auto;       /* optional spacing */
 }
 
-/* Each card is a fixed-size tile */
+/* Each card is a tile with a default width/height */
 .arcen_model_card {
-    position: relative;        /* needed so child elements can be absolutely positioned */
-    width: 30em;
+    position: relative;        
+    width: 30em;              /* default size. If you want dynamic sizing, override via JS or inline style */
     height: 40em;
-    background: #333;          /* fallback background if image is missing */
+    background: #333;
     border-radius: 8px;
     color: #fafafa;
-    overflow: hidden;          /* hide any image overflow */
+    overflow: hidden;
     cursor: pointer;
-    text-align: center;        /* center text if we want that in the overlay */
+    text-align: center;
     transition: transform 0.2s;
-    /* optional margin or box-sizing as desired */
-    /* margin: 0; */
     box-sizing: border-box;
 }
-
 .arcen_model_card:hover {
     transform: scale(1.05);
 }
@@ -35,51 +53,50 @@
     left: 0;
     width: 100%;
     height: 100%;
-    object-fit: cover; /* fill entire card, preserving aspect ratio */
-    z-index: 1;        /* behind the text overlay */
+    object-fit: cover; 
+    z-index: 1;        
 }
 
 /* The text overlay at the bottom, on top of the image */
 .arcen_model_card .model-info {
     position: absolute;
-    bottom: 0;               /* anchor to bottom of the card */
-    width: 100%;             /* span entire card width */
-    padding: 0.5em;          /* some spacing around text */
-    background: rgba(0, 0, 0, 0.6); /* semi-transparent black for readability */
-    z-index: 2;              /* above the image */
+    bottom: 0;             
+    width: 100%;           
+    padding: 0.5em;        
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 2;            
     box-sizing: border-box;
 }
+
+/* Model detail container, gallery, version block, etc. */
 .arcen_model_detail_container {
     margin-top: 1em;
     padding: 1em;
     border: 1px solid #444;
     border-radius: 6px;
-  }
-  
-  .arcen_model_detail_container .model_description {
+}
+.arcen_model_detail_container .model_description {
     margin: 1em 0;
-  }
-  
-  .arcen_model_gallery {
+}
+.arcen_model_gallery {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
-  }
-  
-  .arcen_gallery_item img {
+}
+.arcen_gallery_item img {
     max-width: 200px;
     max-height: 200px;
     object-fit: cover;
     border-radius: 4px;
-  }
-  
-  .version_block {
+}
+.version_block {
     background: #222;
     border-radius: 4px;
     margin-bottom: 1em;
-  }
+}
 
-  .arcen_extension_download_btn {
+/* Download button styles */
+.arcen_extension_download_btn {
     background-color: #313131 !important;
     color: #f3f3f3 !important;
     font-size: 1.2em !important;
@@ -92,22 +109,49 @@
     cursor: pointer !important;
     margin-top: 0.2em !important;
     display: inline-block !important;
-  }
-  
-  .arcen_extension_download_btn:hover {
+}
+.arcen_extension_download_btn:hover {
     background-color: #34416d !important; 
     transform: scale(1.02);
     box-shadow: 0 3px 6px rgba(0,0,0,0.3);
-  }
-  
-  .arcen_extension_download_btn:active {
+}
+.arcen_extension_download_btn:active {
     transform: scale(0.98);
-  }
+}
+
+/* Make code or pre blocks wrap properly in model descriptions */
 .model_description pre,
 .model_description code {
-    /* Wrap text inside PRE/CODE instead of overflowing */
-    white-space: pre-wrap;      /* let text wrap */
-    word-wrap: break-word;      /* older name for break-word logic */
-    overflow-wrap: break-word;  /* ensure wrapped lines if very long words */
-    max-width: 100%;            /* do not exceed container width */
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+}
+
+/* Popup for #arcenciel_settings_popup */
+#arcenciel_settings_popup {
+    display: none;  /* hidden by default, shown via JS toggle */
+    position: absolute;
+    top: 60px;      
+    right: 10px;
+    padding: 1em;
+    background: #222;
+    border: 1px solid #555;
+    border-radius: 8px;
+    z-index: 999;
+    width: 280px;
+}
+
+/* If you want to style the row of buttons, e.g. #arcen_run_row */
+#arcen_run_row {
+    width: 50em !important;
+    align-self: center;
+}
+#arcen_run_row button#arcen_prev_btn, 
+#arcen_run_row button#arcen_next_btn {
+    width: 10em !important; 
+}
+#arcen_run_row button#arcen_run_btn {
+    width: 20em !important;
+    margin: 0 auto;  /* center horizontally if possible */
 }
