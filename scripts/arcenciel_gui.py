@@ -15,14 +15,14 @@ PLACEHOLDER_IMG = "https://via.placeholder.com/150"
 
 already_created_tab = False
 
-
 ##########################
 # Utility / HTML Builders
 ##########################
 
 def build_image_details_html(img_data):
     """
-    Renders image details in HTML.
+    Renders image details in HTML, including a "Send to txt2img" button 
+    that sets prompt, negative prompt, steps, sampler, seed, cfg in the txt2img UI.
     """
     if not img_data or "id" not in img_data:
         return "<div>No image data found.</div>"
@@ -32,14 +32,31 @@ def build_image_details_html(img_data):
     if file_path:
         full_url = f"https://arcenciel.io/uploads/{file_path}"
     else:
-        full_url = "https://via.placeholder.com/400"
+        full_url = PLACEHOLDER_IMG
 
-    prompt = img_data.get("prompt", "")
-    neg_prompt = img_data.get("negativePrompt", "")
-    sampler = img_data.get("sampler", "")
-    seed = img_data.get("seed", "")
-    steps = img_data.get("steps", "")
-    cfg = img_data.get("cfg", "")
+    prompt = img_data.get("prompt", "") or ""
+    neg_prompt = img_data.get("negativePrompt", "") or ""
+    sampler = img_data.get("sampler", "") or ""
+    seed = img_data.get("seed", "") or ""
+    steps = img_data.get("steps", "") or ""
+    cfg = img_data.get("cfg", "") or ""
+
+    # Build a button that has data-* attributes for each field
+    # We'll handle the click in our arcenciel-html.js
+    send_btn_html = f"""
+    <button 
+      class="arcen_send_to_txt2img_btn"
+      style="margin-top:0.5em; padding:0.4em 0.8em; cursor:pointer;"
+      data-prompt="{prompt.replace('"','&quot;')}"
+      data-neg-prompt="{neg_prompt.replace('"','&quot;')}"
+      data-sampler="{sampler}"
+      data-seed="{seed}"
+      data-steps="{steps}"
+      data-cfg="{cfg}"
+    >
+      Send to txt2img
+    </button>
+    """
 
     html = f"""
     <div style="padding:1em;">
@@ -55,6 +72,8 @@ def build_image_details_html(img_data):
           <div style="margin-top:0.5em;"><b>Seed:</b> {seed}</div>
           <div style="margin-top:0.5em;"><b>Steps:</b> {steps}</div>
           <div style="margin-top:0.5em;"><b>CFG:</b> {cfg}</div>
+
+          {send_btn_html}
         </div>
       </div>
     </div>
@@ -207,7 +226,6 @@ def build_gallery_html(data_list, total_pages=1, card_scale=30):
     Note: 'card_scale' is not injected as inline CSS here.
     The .arcen_model_card is defined in external style_html.css.
     """
-    # Show total pages
     html = f"<div>Total pages: {total_pages}</div>"
     html += "<div class='arcen_model_list'>"
 
@@ -230,15 +248,12 @@ def build_gallery_html(data_list, total_pages=1, card_scale=30):
     html += "</div>"
     return html
 
-
 ############################
-# Search Workflow
+# Search & Download Workflow
 ############################
 
 def do_search_and_download(query, sort_value, page, base_model, model_type, card_scale, model_limit):
-    """
-    Called for manual "Search" or after changing pages.
-    """
+    # ... [Unchanged code for searching, yielding initial HTML, parallel preview downloads] ...
     try:
         page_int = int(page)
     except:
@@ -301,18 +316,12 @@ def do_search_and_download(query, sort_value, page, base_model, model_type, card
 #################################
 
 def prev_page(current_page):
-    """
-    Decrement page number if > 1, otherwise stay at 1.
-    """
     p = int(current_page)
     if p > 1:
         return p - 1
     return 1
 
 def next_page(current_page):
-    """
-    Increment page number unconditionally.
-    """
     return int(current_page) + 1
 
 ###################
@@ -359,50 +368,28 @@ def on_ui_tabs():
         server.route_registered = False
         server.ensure_server_routes
 
-    # Load path presets
     path_presets = path_utils.load_paths()
     print("[ArcEnCiel] loaded path_presets:", path_presets)
 
-    # We create ONE top-level Tab for the entire "ArcEnCiel Browser" extension.
-    # Inside it, we use sub-Tabs for "Browser" and "Utilities."
     with gr.Blocks(elem_id="arcencielTab", css="style_html.css") as arcenciel_interface:
         gr.Markdown("## ArcEnCiel Browser (Parallel Download)")
 
         with gr.Tabs():
-            # Sub-tab #1: Main Browser
+            # Sub-tab #1: "Browser"
             with gr.Tab("Browser"):
-                # Put your main UI code here.
-                # For example:
                 with gr.Row():
                     search_term = gr.Textbox(label="Search models", placeholder="Enter query...")
                     page_box = gr.Number(label="Page #", value=1, precision=0)
                     sort_box = gr.Dropdown(label="Sort", choices=["newest", "oldest"], value="newest")
                     base_model_box = gr.Dropdown(
                         label="Base Model",
-                        choices=[
-                            "Any",
-                            "Illustrious",
-                            "NoobAI Eps",
-                            "NoobAI V-Pred",
-                            "Pony",
-                            "Flux.1 D",
-                            "Flux.1 S",
-                            "SDXL 1.0",
-                            "SD1.5"
-                        ],
+                        choices=["Any","Illustrious","NoobAI Eps","NoobAI V-Pred",
+                                 "Pony","Flux.1 D","Flux.1 S","SDXL 1.0","SD1.5"],
                         value="Any"
                     )
                     model_type_box = gr.Dropdown(
                         label="Model Type",
-                        choices=[
-                            "Any",
-                            "LORA",
-                            "CHECKPOINT",
-                            "VAE",
-                            "EMBEDDING",
-                            "SEGMENTATION",
-                            "OTHER"
-                        ],
+                        choices=["Any","LORA","CHECKPOINT","VAE","EMBEDDING","SEGMENTATION","OTHER"],
                         value="Any"
                     )
                     settings_button = gr.HTML(
@@ -413,13 +400,11 @@ def on_ui_tabs():
                         elem_id="arcenciel_settings_icon"
                     )
 
-                # Another Row for Prev, Search, Next
                 with gr.Row(elem_id="arcen_run_row"):
                     prev_btn = gr.Button("Previous Page", elem_id="arcen_prev_btn", variant="secondary")
                     fetch_download_btn = gr.Button("Search", concurrency_limit=20, elem_id="arcen_run_btn")
                     next_btn = gr.Button("Next Page", elem_id="arcen_next_btn", variant="secondary")
 
-                # The popup group, etc...
                 with gr.Group(elem_id="arcenciel_settings_popup", visible=True):
                     gr.Markdown("**Settings**", elem_id="arcen_settings_title")
                     card_scale_slider = gr.Slider(
@@ -432,56 +417,45 @@ def on_ui_tabs():
                         minimum=1, maximum=20, step=1, value=8
                     )
 
-                # Results area
                 results_html = gr.HTML("<div style='text-align:center;'>No results yet</div>",
-                                    elem_id="arcenciel_results_html")
+                                       elem_id="arcenciel_results_html")
                 model_details_html = gr.HTML("<div>Select a card to see model details</div>",
-                                            elem_id="arcenciel_model_details_html")
+                                             elem_id="arcenciel_model_details_html")
 
-                # Hook up the "Search" button
                 fetch_download_btn.click(
                     fn=do_search_and_download,
-                    inputs=[
-                        search_term, sort_box, page_box,
-                        base_model_box, model_type_box,
-                        card_scale_slider, model_limit_slider
-                    ],
+                    inputs=[search_term, sort_box, page_box,
+                            base_model_box, model_type_box,
+                            card_scale_slider, model_limit_slider],
                     outputs=[results_html],
-                    queue=True,
+                    queue=True
                 )
 
-                # Prev -> do_search, Next -> do_search, etc.
                 prev_btn.click(
                     fn=prev_page,
                     inputs=[page_box],
                     outputs=[page_box]
                 ).then(
                     fn=do_search_and_download,
-                    inputs=[
-                        search_term, sort_box, page_box,
-                        base_model_box, model_type_box,
-                        card_scale_slider, model_limit_slider
-                    ],
+                    inputs=[search_term, sort_box, page_box,
+                            base_model_box, model_type_box,
+                            card_scale_slider, model_limit_slider],
                     outputs=[results_html],
                     queue=True
                 )
-
                 next_btn.click(
                     fn=next_page,
                     inputs=[page_box],
                     outputs=[page_box]
                 ).then(
                     fn=do_search_and_download,
-                    inputs=[
-                        search_term, sort_box, page_box,
-                        base_model_box, model_type_box,
-                        card_scale_slider, model_limit_slider
-                    ],
+                    inputs=[search_term, sort_box, page_box,
+                            base_model_box, model_type_box,
+                            card_scale_slider, model_limit_slider],
                     outputs=[results_html],
                     queue=True
                 )
 
-                # Path Presets
                 with gr.Accordion("Path Presets (for future downloads)", open=False):
                     gr.Markdown("Here you can set default download paths for each model type.")
                     lora_t = gr.Textbox(label="LORA path", value=path_presets["LORA"])
@@ -499,6 +473,7 @@ def on_ui_tabs():
 
                     save_paths_btn = gr.Button("Save Paths")
                     save_status = gr.Textbox(label="Save status", value="", interactive=False)
+
                     save_paths_btn.click(
                         fn=save_paths_ui,
                         inputs=[lora_t, cpt_t, vae_t, emb_t, seg_t, oth_t],
@@ -506,9 +481,8 @@ def on_ui_tabs():
                         queue=False
                     )
 
-            # Sub-tab #2: Utilities
-            # We call our external function from arcenciel_utilities
-            add_utilities_subtab()  # defines "Utilities" sub-tab
+            # Sub-tab #2: "Utilities"
+            add_utilities_subtab()  # from your arcenciel_utilities.py
 
     arcenciel_interface.queue(max_size=100)
     return [(arcenciel_interface, "ArcEnCiel Browser", "arcenciel_tab")]

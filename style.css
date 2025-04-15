@@ -96,7 +96,8 @@
 }
 
 /* Download button styles */
-.arcen_extension_download_btn {
+.arcen_extension_download_btn,
+.arcen_send_to_txt2img_btn {
     background-color: #313131 !important;
     color: #f3f3f3 !important;
     font-size: 1.2em !important;
@@ -110,12 +111,14 @@
     margin-top: 0.2em !important;
     display: inline-block !important;
 }
-.arcen_extension_download_btn:hover {
+.arcen_extension_download_btn:hover,
+.arcen_send_to_txt2img_btn:hover {
     background-color: #34416d !important; 
     transform: scale(1.02);
     box-shadow: 0 3px 6px rgba(0,0,0,0.3);
 }
-.arcen_extension_download_btn:active {
+.arcen_extension_download_btn:active,
+.arcen_send_to_txt2img_btn:active {
     transform: scale(0.98);
 }
 

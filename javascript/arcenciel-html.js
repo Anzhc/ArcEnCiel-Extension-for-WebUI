@@ -2,8 +2,84 @@
 
 console.log("ArcEnCiel extension JS loaded!");
 
+/**
+ * Utility to get the root of Gradio's DOM (if using shadowRoot).
+ */
+function getGradioAppRoot() {
+    const gradioApp = document.querySelector('gradio-app');
+    return gradioApp?.shadowRoot || document;
+}
+
+/**
+ * Fills txt2img fields in stable-diffusion-webui:
+ * prompt, negative prompt, steps, sampler, cfg, seed, etc.
+ */
+function arcencielSendToTxt2Img({prompt, negPrompt, sampler, seed, steps, cfg}) {
+    const root = getGradioAppRoot();
+    if (!root) {
+        console.warn("ArcEnCiel: Could not find gradio app root to set txt2img fields!");
+        return;
+    }
+
+    // txt2img prompt
+    const txt2imgPrompt = root.querySelector("#txt2img_prompt textarea");
+    if (txt2imgPrompt && prompt) {
+        txt2imgPrompt.value = prompt;
+        txt2imgPrompt.dispatchEvent(new Event("input", {bubbles: true}));
+    }
+
+    // negative prompt
+    const txt2imgNegPrompt = root.querySelector("#txt2img_neg_prompt textarea");
+    if (txt2imgNegPrompt && negPrompt) {
+        txt2imgNegPrompt.value = negPrompt;
+        txt2imgNegPrompt.dispatchEvent(new Event("input", {bubbles: true}));
+    }
+
+    // Steps => #txt2img_steps input[type='number']
+    if (steps) {
+        const stepsInput = root.querySelector("#txt2img_steps input[type='number']");
+        if (stepsInput) {
+            stepsInput.value = steps;
+            stepsInput.dispatchEvent(new Event("input", {bubbles: true}));
+        }
+    }
+
+    // Sampler => #txt2img_sampling select
+    if (sampler) {
+        const samplerSelect = root.querySelector("#txt2img_sampling select");
+        if (samplerSelect) {
+            samplerSelect.value = sampler;
+            samplerSelect.dispatchEvent(new Event("input", {bubbles: true}));
+        }
+    }
+
+    // CFG => #txt2img_cfg_scale input[type='number']
+    if (cfg) {
+        const cfgInput = root.querySelector("#txt2img_cfg_scale input[type='number']");
+        if (cfgInput) {
+            cfgInput.value = cfg;
+            cfgInput.dispatchEvent(new Event("input", {bubbles: true}));
+        }
+    }
+
+    // Seed => #txt2img_seed input[type='number']
+    if (seed) {
+        const seedInput = root.querySelector("#txt2img_seed input[type='number']");
+        if (seedInput) {
+            seedInput.value = seed;
+            seedInput.dispatchEvent(new Event("input", {bubbles: true}));
+        }
+    }
+
+    console.log("ArcEnCiel: set txt2img fields", {prompt, negPrompt, sampler, seed, steps, cfg});
+}
+
+// ----------------------------------------------------------------------
+// Existing event listeners
+// ----------------------------------------------------------------------
+
 document.addEventListener("click", function (e) {
-    // 1) If user clicked a "Download with Extension" button
+    // 1) "Download with Extension" button
     const extBtn = e.target.closest(".arcen_extension_download_btn");
     if (extBtn) {
         const modelId = extBtn.getAttribute("data-model-id");
@@ -12,11 +88,10 @@ document.addEventListener("click", function (e) {
         const downloadUrl = extBtn.getAttribute("data-download-url");
         const fileName = extBtn.getAttribute("data-file-name");
 
-        console.log("ArcEnCiel: extension download button =>", {
+        console.log("ArcEnCiel: extension download =>", {
             modelId, versionId, modelType, downloadUrl, fileName
         });
 
-        // Always call the same route, no matter if it's huggingface or arcenciel
         fetch("/arcenciel/download_with_extension", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -36,12 +111,11 @@ document.addEventListener("click", function (e) {
             return resp.json().catch(() => ({}));
         })
         .then(data => {
-            //console.log("ArcEnCiel: extension download response:", data);
-            // No pop-up, just console log
+            // console.log("ArcEnCiel: extension download response:", data);
         })
         .catch(err => console.error("ArcEnCiel: extension download fetch error:", err));
 
-        return; // handled this click
+        return;
     }
 
     // 2) If user clicked a gallery image
@@ -49,7 +123,6 @@ document.addEventListener("click", function (e) {
     if (galItem) {
         const imgId = galItem.getAttribute("data-image-id");
         if (imgId) {
-            //console.log("ArcEnCiel: clicked gallery image ID:", imgId);
             fetch(`/arcenciel/image_details/${imgId}`)
                 .then(resp => resp.text())
                 .then(html => {
@@ -71,8 +144,6 @@ document.addEventListener("click", function (e) {
         const modelId = card.getAttribute("data-model-id");
         if (!modelId) return;
 
-        //console.log("ArcEnCiel: clicked model card with ID:", modelId);
-
         fetch(`/arcenciel/model_details/${modelId}`)
             .then(response => response.text())
             .then(html => {
@@ -87,7 +158,20 @@ document.addEventListener("click", function (e) {
         return;
     }
 
-    // Otherwise do nothing
+    // 4) "Send to txt2img" button
+    const sendBtn = e.target.closest(".arcen_send_to_txt2img_btn");
+    if (sendBtn) {
+        e.stopPropagation();
+        const prompt = sendBtn.getAttribute("data-prompt") || "";
+        const negPrompt = sendBtn.getAttribute("data-neg-prompt") || "";
+        const sampler = sendBtn.getAttribute("data-sampler") || "";
+        const seed = sendBtn.getAttribute("data-seed") || "";
+        const steps = sendBtn.getAttribute("data-steps") || "";
+        const cfg = sendBtn.getAttribute("data-cfg") || "";
+
+        arcencielSendToTxt2Img({prompt, negPrompt, sampler, seed, steps, cfg});
+        return;
+    }
 });
 
 // Listen for gear-button clicks, toggle the popup
@@ -97,23 +181,19 @@ document.addEventListener("click", function (e) {
         e.stopPropagation();
         const popup = document.getElementById("arcenciel_settings_popup");
         if (popup) {
-            if (popup.style.display === "block") {
-                popup.style.display = "none";
-            } else {
-                popup.style.display = "block";
-            }
+            popup.style.display = (popup.style.display === "block") ? "none" : "block";
         }
         return;
     }
 });
-// Optionally hide if user clicks outside
+
+// Optionally hide if user clicks outside the popup
 document.addEventListener("click", function(e) {
     const popup = document.getElementById("arcenciel_settings_popup");
     const settingsBtn = document.getElementById("arcenciel_settings_button");
     if (!popup || !settingsBtn) return;
 
     if (popup.style.display === "block") {
-        // check if the click was inside
         const clickInside = popup.contains(e.target) || settingsBtn.contains(e.target);
         if (!clickInside) {
             popup.style.display = "none";
@@ -121,48 +201,36 @@ document.addEventListener("click", function(e) {
     }
 });
 
-function getGradioAppRoot() {
-    const gradioApp = document.querySelector('gradio-app');
-    // If WebUI is using shadow DOM:
-    return gradioApp?.shadowRoot || document;
-  }
-  
-  function setupArcencielSliderObserver() {
+// ----------------------------------------------------------------------
+// Automatic slider re-styling code, for card scale
+// ----------------------------------------------------------------------
+function setupArcencielSliderObserver() {
     const root = getGradioAppRoot();
     if (!root) return;
-  
-    // Attempt to find the slider's container by ID
+
     const sliderWrapper = root.getElementById("arcenciel_card_scale_slider");
     if (!sliderWrapper) {
-      //console.log("ArcEnCiel: #arcenciel_card_scale_slider not found yet, retrying...");
-      // retry in 1s
-      setTimeout(setupArcencielSliderObserver, 1000);
-      return;
+        setTimeout(setupArcencielSliderObserver, 1000);
+        return;
     }
-  
-    // Now find the actual <input type="range">
     const rangeInput = sliderWrapper.querySelector("input[type='range']");
     if (!rangeInput) {
-      //console.log("ArcEnCiel: range input not found under slider wrapper, retrying...");
-      setTimeout(setupArcencielSliderObserver, 1000);
-      return;
+        setTimeout(setupArcencielSliderObserver, 1000);
+        return;
     }
-  
+
     console.log("ArcEnCiel: Found the card scale slider:", rangeInput);
-  
-    // Create or reuse a <style> tag where we inject dynamic CSS
+
     let styleTag = document.getElementById("arcen_model_card_dynamic_style");
     if (!styleTag) {
-      styleTag = document.createElement("style");
-      styleTag.id = "arcen_model_card_dynamic_style";
-      // Place it in <head> or inside the shadow root <head> if you prefer
-      document.head.appendChild(styleTag);
+        styleTag = document.createElement("style");
+        styleTag.id = "arcen_model_card_dynamic_style";
+        document.head.appendChild(styleTag);
     }
-  
-    // On slider moves, update .arcen_model_card width/height
+
     rangeInput.addEventListener("input", (event) => {
       const val = parseFloat(event.target.value) || 30;
-      const height = Math.round(val * 1.5); // preserve 2:3 ratio
+      const height = Math.round(val * 1.5);
       styleTag.textContent = `
         .arcen_model_card {
           width: ${val}em !important;
@@ -170,9 +238,8 @@ function getGradioAppRoot() {
         }
       `;
     });
-  }
-  
-  // Schedule the first attempt after everything is (mostly) loaded
-  setTimeout(() => {
-    setupArcencielSliderObserver();
-  }, 1000);
+}
+
+setTimeout(() => {
+  setupArcencielSliderObserver();
+}, 1000);
