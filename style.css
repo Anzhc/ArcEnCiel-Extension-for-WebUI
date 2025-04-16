@@ -158,3 +158,24 @@
     width: 20em !important;
     margin: 0 auto;  /* center horizontally if possible */
 }
+
+/* Basic styling for the subfolder input */
+.arcen_subfolder_input {
+    background-color: #272727 !important;  /* or any dark background */
+    color: #f0f0f0 !important;          /* light text for contrast */
+    border: 1px solid #34416d !important;  /* a subtle border */
+    padding: 0.2em 0.4em !important;
+    border-radius: 4px !important;
+    outline: none !important;           /* optional, remove focus outline */
+    margin-top: 0.2em !important;       /* a bit of vertical spacing if needed */
+}
+
+/* If you want a hover effect: */
+.arcen_subfolder_input:hover {
+    border-color: #999 !important;      /* highlight border on hover */
+}
+
+/* If you want a focus effect: */
+.arcen_subfolder_input:focus {
+    border-color: #aaf !important;      /* bluish highlight on focus */
+}

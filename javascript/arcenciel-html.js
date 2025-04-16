@@ -75,7 +75,7 @@ function arcencielSendToTxt2Img({prompt, negPrompt, sampler, seed, steps, cfg}) 
 }
 
 // ----------------------------------------------------------------------
-// Existing event listeners
+// Event listeners
 // ----------------------------------------------------------------------
 
 document.addEventListener("click", function (e) {
@@ -88,10 +88,21 @@ document.addEventListener("click", function (e) {
         const downloadUrl = extBtn.getAttribute("data-download-url");
         const fileName = extBtn.getAttribute("data-file-name");
 
+        // Find the subfolder input inside the same 'version_block' container
+        let versionBlock = extBtn.closest(".version_block");
+        let subfolderVal = "";
+        if (versionBlock) {
+            const subInput = versionBlock.querySelector(".arcen_subfolder_input");
+            if (subInput) {
+                subfolderVal = subInput.value.trim();
+            }
+        }
+
         console.log("ArcEnCiel: extension download =>", {
-            modelId, versionId, modelType, downloadUrl, fileName
+            modelId, versionId, modelType, downloadUrl, fileName, subfolder: subfolderVal
         });
 
+        // Now pass 'subfolder: subfolderVal' to the server route
         fetch("/arcenciel/download_with_extension", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -100,7 +111,8 @@ document.addEventListener("click", function (e) {
                 version_id: versionId,
                 model_type: modelType,
                 url: downloadUrl,
-                file_name: fileName
+                file_name: fileName,
+                subfolder: subfolderVal
             })
         })
         .then(resp => {
@@ -240,6 +252,7 @@ function setupArcencielSliderObserver() {
     });
 }
 
+// Kick off the slider observer after a short delay
 setTimeout(() => {
   setupArcencielSliderObserver();
 }, 1000);

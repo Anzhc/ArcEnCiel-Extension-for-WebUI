@@ -6,6 +6,7 @@ import scripts.arcenciel_api as api
 import scripts.arcenciel_gui as gui
 import scripts.arcenciel_paths as path_utils
 import scripts.arcenciel_global as gl
+import os
 
 route_registered = False  # A global guard so we don't define routes multiple times in the same session
 
@@ -18,8 +19,6 @@ def ensure_server_routes(app: FastAPI):
     if route_registered:
         return  # Already set up routes in this session
     route_registered = True
-
-    #gl.debug_print("[ArcEnCiel] ensure_server_routes => registering routes")
 
     @app.get("/arcenciel/ping")
     def ping_route():
@@ -34,21 +33,35 @@ def ensure_server_routes(app: FastAPI):
         url = data.get("url")
         file_name = data.get("file_name", "UnknownFile")
 
-        #gl.debug_print(f"[ArcEnCiel] Received extension download request => {data}")
+        # <-- here's the new part:
+        subfolder = data.get("subfolder", "").strip()  # user-chosen subfolder, may be empty
 
         if not url:
             return {"error": "No url provided."}
 
+        # Load user paths
         user_paths = path_utils.load_paths()
-        out_dir = user_paths.get(model_type, user_paths["OTHER"]) or "."
 
+        # Look up base path (LORA, CHECKPOINT, etc.)
+        base_dir = user_paths.get(model_type, user_paths["OTHER"]) or "."
+
+        # If there's a subfolder, append it
+        if subfolder:
+            out_dir = os.path.join(base_dir, subfolder)
+        else:
+            out_dir = base_dir
+
+        # Ensure the directory exists
+        os.makedirs(out_dir, exist_ok=True)
+
+        # sanitize the file name
         safe_name = file_name.replace("/", "_").replace("\\", "_")
-        local_path = f"{out_dir}/{safe_name}"
+        local_path = os.path.join(out_dir, safe_name)
 
+        # If it's an ArcEnCiel official route
         final_url = url
         if "arcenciel.io" in url.lower() and model_id and version_id:
             final_url = f"https://arcenciel.io/api/models/{model_id}/versions/{version_id}/download"
-            #gl.debug_print(f"[ArcEnCiel] Using official route => {final_url}")
 
         dl.queue_download(model_id, version_id, final_url, local_path)
         dl.start_downloads()
@@ -57,7 +70,6 @@ def ensure_server_routes(app: FastAPI):
 
     @app.get("/arcenciel/model_details/{model_id}")
     def arcenciel_model_details_route(model_id: int):
-        #gl.debug_print(f"[ArcEnCiel] Fetching details for model {model_id}")
         data = api.fetch_model_details(model_id)
         if "error" in data:
             return Response(content=f"<div>Error: {data['error']}</div>", media_type="text/html")
@@ -66,13 +78,11 @@ def ensure_server_routes(app: FastAPI):
 
     @app.get("/arcenciel/image_details/{image_id}")
     def arcenciel_image_details_route(image_id: int):
-        #gl.debug_print(f"[ArcEnCiel] Fetching details for image {image_id}")
         img_data = api.fetch_image_details(image_id)
         if "error" in img_data:
             return Response(content=f"<div>Error: {img_data['error']}</div>", media_type="text/html")
         html = gui.build_image_details_html(img_data)
         return Response(content=html, media_type="text/html")
-
 
 def on_app_started(demo, app: FastAPI):
     """
