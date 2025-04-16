@@ -8,7 +8,7 @@ import scripts.arcenciel_api as api
 import scripts.arcenciel_global as gl
 import scripts.arcenciel_paths as path_utils
 import scripts.arcenciel_server as server
-import scripts.arcenciel_download as dl  # <-- we need to import your download module here
+import scripts.arcenciel_download as dl  # For canceling downloads
 from scripts.arcenciel_paths import get_paths_for_ui
 from scripts.arcenciel_utilities import add_utilities_subtab
 
@@ -424,6 +424,7 @@ def on_ui_tabs():
         with gr.Tabs():
             # Sub-tab #1: "Browser"
             with gr.Tab("Browser"):
+                # Row of main controls: search, page, sort, base_model, etc.
                 with gr.Row():
                     search_term = gr.Textbox(label="Search models", placeholder="Enter query...")
                     page_box = gr.Number(label="Page #", value=1, precision=0)
@@ -442,14 +443,20 @@ def on_ui_tabs():
                         value="Any"
                     )
 
-                    # New "Cancel All Downloads" button
+                    # Cancel All Downloads button
                     cancel_btn = gr.Button(
                         value="Cancel All Downloads",
                         variant="stop",  # "stop" or "danger"
                         elem_id="arcenciel_cancel_downloads_btn",
                         # style as you like, or rely on default
                     )
-
+                    settings_button = gr.HTML(
+                        """<button id="arcenciel_settings_button" 
+                                style="font-size:1.2em; margin-top:6px; cursor:pointer;">
+                            ⚙️
+                        </button>""",
+                        elem_id="arcenciel_settings_icon"
+                    )
                 with gr.Row(elem_id="arcen_run_row"):
                     prev_btn = gr.Button("Previous Page", elem_id="arcen_prev_btn", variant="secondary")
                     fetch_download_btn = gr.Button("Search", concurrency_limit=20, elem_id="arcen_run_btn")
@@ -472,7 +479,10 @@ def on_ui_tabs():
                 model_details_html = gr.HTML("<div>Select a card to see model details</div>",
                                              elem_id="arcenciel_model_details_html")
 
-                # Attach the search
+                # Cancel output label
+                cancel_status_label = gr.Textbox(label="Cancel Status", value="", interactive=False)
+
+                # Search button => do_search_and_download
                 fetch_download_btn.click(
                     fn=do_search_and_download,
                     inputs=[search_term, sort_box, page_box,
@@ -482,7 +492,7 @@ def on_ui_tabs():
                     queue=True
                 )
 
-                # Prev -> do_search
+                # Prev => do_search
                 prev_btn.click(
                     fn=prev_page,
                     inputs=[page_box],
@@ -496,7 +506,7 @@ def on_ui_tabs():
                     queue=True
                 )
 
-                # Next -> do_search
+                # Next => do_search
                 next_btn.click(
                     fn=next_page,
                     inputs=[page_box],
@@ -523,6 +533,7 @@ def on_ui_tabs():
                     queue=False
                 )
 
+                # Path Presets accordion
                 with gr.Accordion("Path Presets (for future downloads)", open=False):
                     gr.Markdown("Here you can set default download paths for each model type.")
                     lora_t = gr.Textbox(label="LORA path", value=path_presets["LORA"])
@@ -549,7 +560,7 @@ def on_ui_tabs():
                     )
 
             # Sub-tab #2: "Utilities"
-            add_utilities_subtab()  # from your arcenciel_utilities.py
+            add_utilities_subtab()
 
     arcenciel_interface.queue(max_size=100)
     return [(arcenciel_interface, "ArcEnCiel Browser", "arcenciel_tab")]

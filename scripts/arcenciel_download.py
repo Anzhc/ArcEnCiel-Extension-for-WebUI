@@ -33,61 +33,40 @@ def queue_download(model_id, version_id, file_url, filename):
             queue_pbar.refresh()
 
 def start_downloads():
-    """
-    Start a background thread that processes gl.download_queue items dynamically.
-    If already in progress, do nothing.
-    """
     if gl.isDownloading:
-        return  # already in progress
+        return
 
     gl.isDownloading = True
 
     def download_worker():
         global queue_pbar
-        #gl.debug_print("Starting dynamic queue downloader.")
-
-        # We'll create the queue-level TQDM with a 0 initial total.
-        # dynamic_ncols=True can help TQDM properly size columns.
-        with tqdm.tqdm(
-            total=0,
-            desc="Queue",
-            ascii=True,
-            position=0,
-            dynamic_ncols=True
-        ) as pbar:
-            # store in global so queue_download can update it
+        with tqdm.tqdm(total=0, desc="Queue", ascii=True, position=0, dynamic_ncols=True) as pbar:
             with queue_pbar_lock:
                 queue_pbar = pbar
 
-            # Now loop while queue has items or we haven't been canceled
             while True:
                 if gl.cancel_status:
-                    #gl.debug_print("Download canceled globally.")
+                    # user canceled => break
                     break
 
-                # If queue is empty, check if we might be done
                 if not gl.download_queue:
-                    # small sleep to see if new items come in
                     time.sleep(0.2)
-                    # If still empty, maybe we are done
                     if not gl.download_queue and not gl.cancel_status:
-                        # no more items arrived
+                        # no new items arrived => done
                         break
                     continue
 
-                # Pop the first item
                 item = gl.download_queue.pop(0)
                 do_download(item)
-
-                # once file finishes, increment queue bar
                 pbar.update(1)
 
-            # end while
-            #gl.debug_print("All downloads finished or canceled.")
+            # either queue is empty or user canceled
             gl.isDownloading = False
-            # Reset queue_pbar to None
             with queue_pbar_lock:
                 queue_pbar = None
+
+            # Now that we’re done or canceled, reset for next time
+            gl.cancel_status = False
 
     t = threading.Thread(target=download_worker, daemon=True)
     t.start()
@@ -138,3 +117,4 @@ def cancel_all_downloads():
     #gl.debug_print("Canceling all downloads.")
     gl.cancel_status = True
     gl.download_queue.clear()
+
