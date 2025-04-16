@@ -8,6 +8,7 @@ import scripts.arcenciel_api as api
 import scripts.arcenciel_global as gl
 import scripts.arcenciel_paths as path_utils
 import scripts.arcenciel_server as server
+import scripts.arcenciel_download as dl  # <-- we need to import your download module here
 from scripts.arcenciel_paths import get_paths_for_ui
 from scripts.arcenciel_utilities import add_utilities_subtab
 
@@ -21,48 +22,18 @@ already_created_tab = False
 ##########################
 
 def gather_subfolders_recursively(base_dir):
-    """
-    Recursively collect all subfolder paths *relative* to base_dir.
-    Returns a list of subfolder strings like "myfolder/sub1", "myfolder/sub1/sub2", etc.
-    Skips the base_dir itself.
-    """
     subfolders = []
     for root, dirs, files in os.walk(base_dir):
-        # root is an absolute path, but we want relative path from base_dir
         rel_root = os.path.relpath(root, base_dir)
-        # If rel_root == ".", it's the base dir
         if rel_root != ".":
-            # Add this subfolder to the list
-            subfolders.append(rel_root.replace("\\", "/"))  # ensure forward slashes
-
-        # The 'dirs' list is updated in-place if we wanted to skip certain folders
-        # but we'll just let it go.
-
-    # Sort for consistent order
+            subfolders.append(rel_root.replace("\\", "/"))
     subfolders.sort()
     return subfolders
 
 def build_subfolder_input_html(model_type):
-    """
-    Build an inline HTML snippet: 
-    1) A <datalist> that enumerates all subfolders under the path for `model_type`.
-    2) An <input type="text" list="..."> that references it.
-
-    If the user picks/enters "myfolder/sub2", we interpret that as a subfolder path relative to the base path for model_type.
-    """
-    # We map the model_type to the known path from path_utils.load_paths()
     path_presets = path_utils.load_paths()
-    # The model_type might be "LORA", "CHECKPOINT", etc. Or "OTHER"
-    # We'll uppercase it if needed
-    # But your code typically uses uppercase strings for these paths, or you might have to map them.
-    # We'll do a simple approach: 
-    #   if model_type is "LORA", then path_presets["LORA"]
-    #   if "checkpoint" => path_presets["CHECKPOINT"], etc.
-    # But you mentioned the model_type is like "LORA" or "CHECKPOINT" in your code. 
-    # We'll just do a safe .get(...) approach:
     base_dir = path_presets.get(model_type.upper())
     if not base_dir or not os.path.isdir(base_dir):
-        # If path isn't valid, just return a minimal input with no datalist
         return f"""
           <input 
             type="text" 
@@ -74,15 +45,11 @@ def build_subfolder_input_html(model_type):
           />
         """
 
-    # Gather subfolders
     subfolders = gather_subfolders_recursively(base_dir)
-    # Build <option> lines
     option_lines = ""
     for sf in subfolders:
-        # We do <option value="sf" />
         option_lines += f'<option value="{sf}"/>\n'
 
-    # We'll make a unique datalist ID per model_type
     datalist_id = f"arcen_subfolders_{model_type.lower()}"
     html = f"""
     <datalist id="{datalist_id}">
@@ -99,16 +66,11 @@ def build_subfolder_input_html(model_type):
     """
     return html
 
-
 ##########################
 # Utility / HTML Builders
 ##########################
 
 def build_image_details_html(img_data):
-    """
-    Renders image details in HTML, including a "Send to txt2img" button 
-    that sets prompt, negative prompt, steps, sampler, seed, cfg in the txt2img UI.
-    """
     if not img_data or "id" not in img_data:
         return "<div>No image data found.</div>"
 
@@ -163,13 +125,7 @@ def build_image_details_html(img_data):
     """
     return html
 
-
 def build_model_details_html(model_data):
-    """
-    Renders model details in a 2-column layout with gallery and version info.
-    For each version, we add a new input for subfolder selection, inline with
-    the two download buttons.
-    """
     if not model_data or "id" not in model_data:
         return "<div>Empty or invalid model data.</div>"
 
@@ -181,7 +137,6 @@ def build_model_details_html(model_data):
     uploader = model_data.get("uploader", {})
     versions = model_data.get("versions", [])
 
-    # Attempt official gallery, fallback to pinned, fallback to version images...
     gallery_resp = api.get_model_gallery(model_id)
     gallery_items = gallery_resp.get("data", []) or []
     if not gallery_items:
@@ -233,11 +188,6 @@ def build_model_details_html(model_data):
     if not versions:
         html += "<div>No versions found for this model.</div>"
     else:
-        # Prepare subfolder <datalist>/<input> snippet once 
-        # for the entire model_type if needed:
-        # Actually, each version might be the same model_type. 
-        # We'll just build it once per version, or once outside?
-        # We'll do it per version for clarity.
         for ver in versions:
             v_id = ver.get("id", "")
             v_name = ver.get("versionName", "Unnamed version")
@@ -271,16 +221,11 @@ def build_model_details_html(model_data):
             if about:
                 html += f"<div><b>Notes:</b> {about}</div>"
 
-            # Start a row containing:
-            #   1) Download (Browser) anchor
-            #   2) Download with Extension button
-            #   3) Subfolder text input (with datalist)
-            subfolder_html = build_subfolder_input_html(model_type)  # returns <input> + <datalist>
+            subfolder_html = build_subfolder_input_html(model_type)
 
             html += f"""
             <div style="display:flex; align-items:center; gap:0.6em; margin-top:0.5em;">
             
-              <!-- Download (Browser) anchor -->
               <a 
                 href="{direct_link}" 
                 target="_blank" 
@@ -289,7 +234,6 @@ def build_model_details_html(model_data):
                   Download (Browser)
               </a>
 
-              <!-- Download with Extension button -->
               <button 
                 class='arcen_extension_download_btn' 
                 data-model-id="{model_id}"
@@ -301,14 +245,12 @@ def build_model_details_html(model_data):
                   Download with Extension
               </button>
 
-              <!-- Subfolder combobox -->
               {subfolder_html}
             </div>
             """
 
             html += "</div>"
 
-    # Right column placeholder
     html += """
   </div>
   <div style='flex:1; min-width:300px;' id='arcen_image_details_panel'>
@@ -320,11 +262,7 @@ def build_model_details_html(model_data):
     """
     return html
 
-
 def build_gallery_html(data_list, total_pages=1, card_scale=30):
-    """
-    Builds the main search results gallery. 
-    """
     html = f"<div>Total pages: {total_pages}</div>"
     html += "<div class='arcen_model_list'>"
 
@@ -347,15 +285,11 @@ def build_gallery_html(data_list, total_pages=1, card_scale=30):
     html += "</div>"
     return html
 
-
 ############################
 # Search & Download Workflow
 ############################
 
 def do_search_and_download(query, sort_value, page, base_model, model_type, card_scale, model_limit):
-    """
-    Called for manual "Search" or after changing pages.
-    """
     try:
         page_int = int(page)
     except:
@@ -385,10 +319,9 @@ def do_search_and_download(query, sort_value, page, base_model, model_type, card
         id_to_item[item["id"]] = item
 
     total_pages = resp.get("totalPages", 1)
-    # yield initial HTML
     yield build_gallery_html(data_list, total_pages, card_scale)
 
-    # Download previews in parallel
+    # parallel preview downloads
     unfinished = set()
     for item in data_list:
         m_id = item["id"]
@@ -413,7 +346,6 @@ def do_search_and_download(query, sort_value, page, base_model, model_type, card
         if unfinished:
             time.sleep(0.25)
 
-
 #################################
 # Page Up / Page Down Functions
 #################################
@@ -426,7 +358,6 @@ def prev_page(current_page):
 
 def next_page(current_page):
     return int(current_page) + 1
-
 
 ###################
 # Path-saving logic
@@ -444,6 +375,17 @@ def save_paths_ui(lora_path, checkpoint_path, vae_path, embedding_path, segmenta
     msg = path_utils.save_paths(**kwargs)
     return msg
 
+##################################
+# Cancel downloads
+##################################
+
+def cancel_downloads_ui():
+    """
+    A simple Gradio callback function that calls dl.cancel_all_downloads().
+    Returns a message string for the UI.
+    """
+    dl.cancel_all_downloads()
+    return "All queued (and ongoing) downloads have been canceled."
 
 ##################################
 # Main UI callback
@@ -488,8 +430,10 @@ def on_ui_tabs():
                     sort_box = gr.Dropdown(label="Sort", choices=["newest", "oldest"], value="newest")
                     base_model_box = gr.Dropdown(
                         label="Base Model",
-                        choices=["Any","Illustrious","NoobAI Eps","NoobAI V-Pred",
-                                 "Pony","Flux.1 D","Flux.1 S","SDXL 1.0","SD1.5"],
+                        choices=[
+                            "Any","Illustrious","NoobAI Eps","NoobAI V-Pred",
+                            "Pony","Flux.1 D","Flux.1 S","SDXL 1.0","SD1.5"
+                        ],
                         value="Any"
                     )
                     model_type_box = gr.Dropdown(
@@ -497,12 +441,13 @@ def on_ui_tabs():
                         choices=["Any","LORA","CHECKPOINT","VAE","EMBEDDING","SEGMENTATION","OTHER"],
                         value="Any"
                     )
-                    settings_button = gr.HTML(
-                        """<button id="arcenciel_settings_button" 
-                                style="font-size:1.2em; margin-top:22px; cursor:pointer;">
-                        ⚙️
-                        </button>""",
-                        elem_id="arcenciel_settings_icon"
+
+                    # New "Cancel All Downloads" button
+                    cancel_btn = gr.Button(
+                        value="Cancel All Downloads",
+                        variant="stop",  # "stop" or "danger"
+                        elem_id="arcenciel_cancel_downloads_btn",
+                        # style as you like, or rely on default
                     )
 
                 with gr.Row(elem_id="arcen_run_row"):
@@ -527,6 +472,7 @@ def on_ui_tabs():
                 model_details_html = gr.HTML("<div>Select a card to see model details</div>",
                                              elem_id="arcenciel_model_details_html")
 
+                # Attach the search
                 fetch_download_btn.click(
                     fn=do_search_and_download,
                     inputs=[search_term, sort_box, page_box,
@@ -536,6 +482,7 @@ def on_ui_tabs():
                     queue=True
                 )
 
+                # Prev -> do_search
                 prev_btn.click(
                     fn=prev_page,
                     inputs=[page_box],
@@ -548,6 +495,8 @@ def on_ui_tabs():
                     outputs=[results_html],
                     queue=True
                 )
+
+                # Next -> do_search
                 next_btn.click(
                     fn=next_page,
                     inputs=[page_box],
@@ -559,6 +508,19 @@ def on_ui_tabs():
                             card_scale_slider, model_limit_slider],
                     outputs=[results_html],
                     queue=True
+                )
+
+                # Cancel downloads => calls cancel_downloads_ui
+                cancel_status_label = gr.Textbox(
+                    label="Cancel Status",
+                    value="", 
+                    interactive=False
+                )
+                cancel_btn.click(
+                    fn=cancel_downloads_ui,
+                    inputs=[],
+                    outputs=[cancel_status_label],
+                    queue=False
                 )
 
                 with gr.Accordion("Path Presets (for future downloads)", open=False):
