@@ -10,6 +10,7 @@ import scripts.arcenciel_api as api
 import scripts.arcenciel_paths as path_utils
 import scripts.arcenciel_global as gl
 
+
 def clean_description(desc: str) -> str:
     """
     Gracefully convert HTML/Markdown-like description into readable plain text,
@@ -36,8 +37,7 @@ def gather_files_recursive(dir_path, exts):
     for root, dirs, files in os.walk(dir_path):
         for fname in files:
             if fname.lower().endswith(exts):
-                fpath = os.path.join(root, fname)
-                matched.append(fpath)
+                matched.append(os.path.join(root, fname))
     return matched
 
 
@@ -70,8 +70,7 @@ def create_jsons_for_models(
         yield "<p style='color:red;'>No categories selected. Aborting.</p>"
         return
 
-    # We gather model files by scanning each directory (and its subfolders) 
-    # for recognized file extensions.
+    # Recursively gather model files
     exts = (".safetensors", ".ckpt", ".bin", ".pt")
     model_files = []
     for key in selected_keys:
@@ -79,10 +78,7 @@ def create_jsons_for_models(
         if not p or not os.path.isdir(p):
             yield f"<p style='color:orange;'>Path for {key} is not set or invalid: {p}</p>"
             continue
-
-        # Recursively gather .safetensors, .ckpt, .bin, .pt
-        found_in_path = gather_files_recursive(p, exts)
-        model_files.extend(found_in_path)
+        model_files.extend(gather_files_recursive(p, exts))
 
     total_count = len(model_files)
     if total_count == 0:
@@ -95,27 +91,17 @@ def create_jsons_for_models(
         fname = os.path.basename(fpath)
         yield f"<p>[{idx}/{total_count}] Checking: {fname}</p>"
 
-        # Determine if we need JSON or preview
         base_no_ext, _ = os.path.splitext(fpath)
         json_path = base_no_ext + ".json"
         preview_path = base_no_ext + ".png"
 
-        # Do we need to create or overwrite JSON?
-        need_json = False
-        if overwrite_json:
-            need_json = True
-        else:
-            need_json = not os.path.exists(json_path)
+        need_json = overwrite_json or not os.path.exists(json_path)
+        need_preview = download_preview and not os.path.exists(preview_path)
 
-        # Do we need to download preview?
-        need_preview = (download_preview and not os.path.exists(preview_path))
-
-        # If we need neither, skip
         if not need_json and not need_preview:
             yield f"<p style='color:blue;'>Nothing to do for {fname}, skipping.</p>"
             continue
 
-        # OK, compute SHA + search ArcEnCiel
         try:
             sha_val = calculate_sha256(fpath)
         except Exception as e:
@@ -127,7 +113,6 @@ def create_jsons_for_models(
             yield f"<p>No ArcEnCiel match => skipping {fname}.</p>"
             continue
 
-        # Among returned models, find version with exact matching sha
         matched_model = None
         matched_version = None
         for m in resp["data"]:
@@ -143,7 +128,6 @@ def create_jsons_for_models(
             yield f"<p>Found models, but none had a matching version => skipping {fname}.</p>"
             continue
 
-        # If needed, create/update JSON
         if need_json:
             model_id = matched_model.get("id", 0)
             raw_desc = matched_model.get("description", "No description")
@@ -170,7 +154,6 @@ def create_jsons_for_models(
             except Exception as e:
                 yield f"<p style='color:red;'>Error writing JSON {os.path.basename(json_path)}: {e}</p>"
 
-        # If needed, download preview
         if need_preview:
             fake_item = {"versions": [matched_version]}
             data_url = api.download_preview_image(fake_item)
@@ -191,30 +174,25 @@ def create_jsons_for_models(
 
 def add_utilities_subtab():
     """
-    Creates the 'Utilities' sub-tab for ArcEnCiel, with a row of 3 columns:
-
-      [Column A]: Our "Create JSON for Models" feature
-      [Column B]: Placeholder for future features
-      [Column C]: Another placeholder
-
-    Each column is in a 'Box' or 'Group' for visual separation.
+    Creates the 'Utilities' sub-tab for ArcEnCiel, with a 3-column layout:
+      - Column A: Create JSON for models
+      - Column B/C: placeholders
     """
     with gr.Tab("Utilities"):
         gr.Markdown("### ArcEnCiel Utilities")
 
         with gr.Row():
-            # Column A: Our main JSON/preview utility
+            # Column A: Main utility
             with gr.Box():
                 gr.Markdown("**Create JSON for Models**")
-
                 gr.Markdown("Select which categories to process:")
                 with gr.Row():
-                    check_lora = gr.Checkbox(value=True,  label="LORA")
-                    check_cpt  = gr.Checkbox(value=True,  label="CHECKPOINT")
-                    check_vae  = gr.Checkbox(value=True,  label="VAE")
-                    check_emb  = gr.Checkbox(value=True,  label="EMBEDDING")
-                    check_seg  = gr.Checkbox(value=True,  label="SEGMENTATION")
-                    check_oth  = gr.Checkbox(value=True,  label="OTHER")
+                    check_lora = gr.Checkbox(value=True, label="LORA")
+                    check_cpt = gr.Checkbox(value=True, label="CHECKPOINT")
+                    check_vae = gr.Checkbox(value=True, label="VAE")
+                    check_emb = gr.Checkbox(value=True, label="EMBEDDING")
+                    check_seg = gr.Checkbox(value=True, label="SEGMENTATION")
+                    check_oth = gr.Checkbox(value=True, label="OTHER")
 
                 gr.Markdown("Additional Options:")
                 with gr.Row():
@@ -222,7 +200,10 @@ def add_utilities_subtab():
                     check_download_preview = gr.Checkbox(value=False, label="Download preview image")
 
                 generate_json_btn = gr.Button("Create JSON for Models")
-                progress_html = gr.HTML("No progress yet.")
+                progress_html = gr.HTML(
+                    "No progress yet.",
+                    elem_id="arcenciel_utilities_progress"
+                )
 
                 generate_json_btn.click(
                     fn=create_jsons_for_models,
@@ -239,9 +220,6 @@ def add_utilities_subtab():
                     outputs=[progress_html],
                     queue=True
                 )
-
-                # This is where the progress text goes:
-                progress_html.style(height=250, overflow="auto")
 
             # Column B: Placeholder
             with gr.Box():

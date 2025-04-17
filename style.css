@@ -179,3 +179,9 @@
 .arcen_subfolder_input:focus {
     border-color: #aaf !important;      /* bluish highlight on focus */
 }
+
+/* Utilities progress panel styling */
+#arcenciel_utilities_progress {
+    height: 250px;
+    overflow: auto;
+  }
