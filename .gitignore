@@ -51,6 +51,10 @@ coverage.xml
 .pytest_cache/
 cover/
 
+# ArcEnCiel local runtime state
+cache/
+save_paths.txt
+
 # Translations
 *.mo
 *.pot

@@ -2,13 +2,19 @@ import os
 import re
 import json
 import base64
+import html
 import gradio as gr
 from bs4 import BeautifulSoup
 from modules.hashes import calculate_sha256
 
 import scripts.arcenciel_api as api
+import scripts.arcenciel_inventory as inventory
 import scripts.arcenciel_paths as path_utils
-import scripts.arcenciel_global as gl
+import scripts.arcenciel_sidecars as sidecars
+
+
+def esc(value):
+    return html.escape(str(value or ""), quote=False)
 
 
 def clean_description(desc: str) -> str:
@@ -30,7 +36,7 @@ def clean_description(desc: str) -> str:
 
 def gather_files_recursive(dir_path, exts):
     """
-    Recursively scan 'dir_path' for files whose extension is in 'exts' 
+    Recursively scan 'dir_path' for files whose extension is in 'exts'
     and return a list of full file paths.
     """
     matched = []
@@ -56,7 +62,7 @@ def create_jsons_for_models(
     """
 
     paths_dict = path_utils.load_paths()
-    
+
     # Determine which categories are selected
     selected_keys = []
     if lora_sel: selected_keys.append("LORA")
@@ -76,7 +82,7 @@ def create_jsons_for_models(
     for key in selected_keys:
         p = paths_dict.get(key)
         if not p or not os.path.isdir(p):
-            yield f"<p style='color:orange;'>Path for {key} is not set or invalid: {p}</p>"
+            yield f"<p style='color:orange;'>Path for {esc(key)} is not set or invalid: {esc(p)}</p>"
             continue
         model_files.extend(gather_files_recursive(p, exts))
 
@@ -89,7 +95,7 @@ def create_jsons_for_models(
 
     for idx, fpath in enumerate(model_files, start=1):
         fname = os.path.basename(fpath)
-        yield f"<p>[{idx}/{total_count}] Checking: {fname}</p>"
+        yield f"<p>[{idx}/{total_count}] Checking: {esc(fname)}</p>"
 
         base_no_ext, _ = os.path.splitext(fpath)
         json_path = base_no_ext + ".json"
@@ -99,18 +105,18 @@ def create_jsons_for_models(
         need_preview = download_preview and not os.path.exists(preview_path)
 
         if not need_json and not need_preview:
-            yield f"<p style='color:blue;'>Nothing to do for {fname}, skipping.</p>"
+            yield f"<p style='color:blue;'>Nothing to do for {esc(fname)}, skipping.</p>"
             continue
 
         try:
             sha_val = calculate_sha256(fpath)
         except Exception as e:
-            yield f"<p style='color:red;'>Error hashing {fname}: {e}</p>"
+            yield f"<p style='color:red;'>Error hashing {esc(fname)}: {esc(e)}</p>"
             continue
 
         resp = api.search_models(search_term=sha_val, limit=5)
         if not resp or "data" not in resp or not resp["data"]:
-            yield f"<p>No ArcEnCiel match => skipping {fname}.</p>"
+            yield f"<p>No ArcEnCiel match => skipping {esc(fname)}.</p>"
             continue
 
         matched_model = None
@@ -125,51 +131,37 @@ def create_jsons_for_models(
                 break
 
         if not matched_model or not matched_version:
-            yield f"<p>Found models, but none had a matching version => skipping {fname}.</p>"
+            yield f"<p>Found models, but none had a matching version => skipping {esc(fname)}.</p>"
             continue
 
-        if need_json:
-            model_id = matched_model.get("id", 0)
-            raw_desc = matched_model.get("description", "No description")
-            desc_text = clean_description(raw_desc)
-
-            base_model_str = matched_version.get("baseModel", "Other")
-            version_id = matched_version.get("id", 0)
-            activation_tags = matched_version.get("activationTags", [])
-            activation_text = "\n\n".join(activation_tags)
-
-            json_data = {
-                "sha256": sha_val,
-                "modelId": model_id,
-                "modelVersionId": version_id,
-                "activation text": activation_text,
-                "description": desc_text,
-                "sd version": base_model_str,
-            }
-
-            try:
-                with open(json_path, "w", encoding="utf-8") as f:
-                    json.dump(json_data, f, indent=2)
-                yield f"<p style='color:green;'>Wrote JSON => {os.path.basename(json_path)}</p>"
-            except Exception as e:
-                yield f"<p style='color:red;'>Error writing JSON {os.path.basename(json_path)}: {e}</p>"
-
-        if need_preview:
-            fake_item = {"versions": [matched_version]}
-            data_url = api.download_preview_image(fake_item)
-            if data_url:
-                try:
-                    raw_b64 = data_url.split(",", 1)[1]
-                    raw_data = base64.b64decode(raw_b64)
-                    with open(preview_path, "wb") as imgf:
-                        imgf.write(raw_data)
-                    yield f"<p style='color:green;'>Downloaded preview => {os.path.basename(preview_path)}</p>"
-                except Exception as e:
-                    yield f"<p style='color:red;'>Error saving preview for {fname}: {e}</p>"
-            else:
-                yield f"<p style='color:orange;'>No preview available for {fname}.</p>"
+        try:
+            sidecars.write_sidecars(
+                matched_model,
+                matched_version,
+                fpath,
+                sha_local=sha_val,
+                download_preview=need_preview,
+            )
+            inventory.update_cached_hash(fpath, sha_val)
+            if need_json:
+                yield f"<p style='color:green;'>Wrote JSON/info sidecars => {esc(os.path.basename(json_path))}</p>"
+            if need_preview:
+                yield f"<p style='color:green;'>Downloaded preview sidecar for {esc(fname)}.</p>"
+        except Exception as e:
+            yield f"<p style='color:red;'>Error writing sidecars for {esc(fname)}: {esc(e)}</p>"
 
     yield "<p>Done processing all models in selected categories.</p>"
+
+
+def scan_inventory_ui():
+    try:
+        result = inventory.scan_inventory()
+        return (
+            f"<p style='color:green;'>Inventory scan complete: "
+            f"{esc(result.get('files'))} files, {esc(result.get('hashes'))} hashes.</p>"
+        )
+    except Exception as e:
+        return f"<p style='color:red;'>Inventory scan failed: {esc(e)}</p>"
 
 
 def add_utilities_subtab():
@@ -200,6 +192,7 @@ def add_utilities_subtab():
                     check_download_preview = gr.Checkbox(value=False, label="Download preview image")
 
                 generate_json_btn = gr.Button("Create JSON for Models")
+                scan_inventory_btn = gr.Button("Scan Installed Models")
                 progress_html = gr.HTML(
                     "No progress yet.",
                     elem_id="arcenciel_utilities_progress"
@@ -217,6 +210,12 @@ def add_utilities_subtab():
                         check_overwrite,
                         check_download_preview
                     ],
+                    outputs=[progress_html],
+                    queue=True
+                )
+                scan_inventory_btn.click(
+                    fn=scan_inventory_ui,
+                    inputs=[],
                     outputs=[progress_html],
                     queue=True
                 )

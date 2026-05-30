@@ -13,5 +13,7 @@ def install_req(check_name, install_name=None):
 install_req("requests")
 install_req("send2trash")
 install_req("beautifulsoup4", "beautifulsoup4==4.12.2")
+install_req("PIL", "Pillow")
+install_req("tqdm")
 
 print("[ArcEnCiel Extension] Finished install.py")
