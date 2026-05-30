@@ -80,7 +80,16 @@ def commandline_path_overrides():
 
 def _is_legacy_windows_placeholder(model_type, value):
     expected = _LEGACY_WINDOWS_DEFAULTS.get(model_type, "")
-    return os.name != "nt" and str(value).strip().lower() == expected.lower()
+    value = str(value or "").strip()
+    if not value:
+        return False
+    normalized = value.replace("/", "\\").rstrip("\\").lower()
+    expected_normalized = expected.rstrip("\\").lower()
+    if normalized == expected_normalized:
+        return True
+    if normalized.startswith("c:\\mymodels\\") and not Path(value).exists():
+        return True
+    return False
 
 
 def resolve_path_value(value, model_type=None):
