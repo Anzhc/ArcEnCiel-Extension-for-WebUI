@@ -1,5 +1,7 @@
 import os
 import re
+import argparse
+import shlex
 from pathlib import PurePosixPath
 from pathlib import Path
 
@@ -18,6 +20,12 @@ DEFAULT_RELATIVE_PATHS = {
 }
 _LEGACY_WINDOWS_DEFAULTS = {t: f"C:\\myModels\\{t.lower()}" for t in KNOWN_TYPES}
 _SAFE_FILENAME_CHARS = re.compile(r"[\x00-\x1f\x7f<>:\"|?*]")
+_CMD_OVERRIDE_ATTRS = {
+    "CHECKPOINT": "ckpt_dir",
+    "LORA": "lora_dir",
+    "VAE": "vae_dir",
+    "EMBEDDING": "embeddings_dir",
+}
 
 
 def webui_root():
@@ -29,11 +37,45 @@ def webui_root():
         return Path.cwd().expanduser().resolve()
 
 
+def _base_default_paths():
+    root = webui_root()
+    return {key: str((root / value).resolve()) for key, value in DEFAULT_RELATIVE_PATHS.items()}
+
+
 def default_paths(raw=False):
     if raw:
         return dict(DEFAULT_RELATIVE_PATHS)
-    root = webui_root()
-    return {key: str((root / value).resolve()) for key, value in DEFAULT_RELATIVE_PATHS.items()}
+    defaults = _base_default_paths()
+    defaults.update(commandline_path_overrides())
+    return defaults
+
+
+def commandline_path_overrides():
+    opts = {key: None for key in _CMD_OVERRIDE_ATTRS.values()}
+    try:
+        from modules import shared
+
+        for attr in opts:
+            value = getattr(shared.cmd_opts, attr, None)
+            if value:
+                opts[attr] = value
+    except Exception:
+        pass
+
+    if not any(opts.values()) and os.getenv("COMMANDLINE_ARGS"):
+        parser = argparse.ArgumentParser(add_help=False)
+        for attr in opts:
+            parser.add_argument(f"--{attr.replace('_', '-')}")
+        parsed, _ = parser.parse_known_args(shlex.split(os.getenv("COMMANDLINE_ARGS", "")))
+        for attr, value in vars(parsed).items():
+            if value:
+                opts[attr] = value
+
+    overrides = {}
+    for model_type, attr in _CMD_OVERRIDE_ATTRS.items():
+        if opts.get(attr):
+            overrides[model_type] = resolve_path_literal(opts[attr])
+    return overrides
 
 
 def _is_legacy_windows_placeholder(model_type, value):
@@ -43,12 +85,20 @@ def _is_legacy_windows_placeholder(model_type, value):
 
 def resolve_path_value(value, model_type=None):
     value = str(value or "").strip()
-    defaults = default_paths()
+    defaults = _base_default_paths()
     if not value:
         return defaults.get(model_type, str(webui_root()))
     if model_type and _is_legacy_windows_placeholder(model_type, value):
         return defaults.get(model_type, str(webui_root()))
 
+    expanded = Path(os.path.expandvars(os.path.expanduser(value)))
+    if expanded.is_absolute():
+        return str(expanded.resolve())
+    return str((webui_root() / expanded).resolve())
+
+
+def resolve_path_literal(value):
+    value = str(value or "").strip()
     expanded = Path(os.path.expandvars(os.path.expanduser(value)))
     if expanded.is_absolute():
         return str(expanded.resolve())
@@ -80,7 +130,9 @@ def load_paths():
             val = val.strip()
             if key in KNOWN_TYPES:
                 loaded_dict[key] = val
-    return {key: resolve_path_value(value, key) for key, value in loaded_dict.items()}
+    resolved = {key: resolve_path_value(value, key) for key, value in loaded_dict.items()}
+    resolved.update(commandline_path_overrides())
+    return resolved
 
 def _save_paths(paths_dict):
     """

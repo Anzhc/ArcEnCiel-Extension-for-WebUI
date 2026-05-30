@@ -2,12 +2,14 @@
 
 import html
 import os
+import sys
 
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 import scripts.arcenciel_download as dl
 import scripts.arcenciel_api as api
 import scripts.arcenciel_gui as gui
+import scripts.arcenciel_inventory as inventory
 import scripts.arcenciel_paths as path_utils
 
 route_registered = False  # A global guard so we don't define routes multiple times in the same session
@@ -27,6 +29,32 @@ def ensure_server_routes(app: FastAPI):
     def ping_route():
         return {"status": "ok"}
 
+    @app.get("/arcenciel/link_status")
+    def link_status_route():
+        return JSONResponse(link_status())
+
+    @app.get("/arcenciel/folders/{model_type}")
+    def folders_route(model_type: str):
+        try:
+            return JSONResponse({"folders": inventory.list_subfolders_for_model_type(model_type)})
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+
+    @app.post("/arcenciel/inventory/scan")
+    def inventory_scan_route():
+        return JSONResponse({"ok": True, **inventory.scan_inventory()})
+
+    @app.get("/arcenciel/download_status/{job_id}")
+    def download_status_route(job_id: str):
+        status = dl.get_download_status(job_id)
+        if not status:
+            return JSONResponse({"error": "Unknown download job."}, status_code=404)
+        return JSONResponse(status)
+
+    @app.get("/arcenciel/downloads")
+    def downloads_route():
+        return JSONResponse({"jobs": dl.list_download_statuses()})
+
     @app.post("/arcenciel/download_with_extension")
     async def download_with_extension(request: Request):
         data = await request.json()
@@ -40,6 +68,30 @@ def ensure_server_routes(app: FastAPI):
         if not url:
             return JSONResponse({"error": "No url provided."}, status_code=400)
 
+        model_data = {}
+        version_data = {}
+        expected_hash = ""
+        try:
+            if str(model_id).isdigit():
+                model_data = api.fetch_model_details(model_id)
+                for version in model_data.get("versions") or []:
+                    if str(version.get("id")) == str(version_id):
+                        version_data = version
+                        break
+                hashes = inventory.version_hashes(version_data)
+                expected_hash = hashes[0] if hashes else ""
+                installed_path = inventory.find_installed_by_hashes(hashes)
+                if installed_path:
+                    return JSONResponse(
+                        {
+                            "error": "This version is already installed.",
+                            "path": installed_path,
+                        },
+                        status_code=409,
+                    )
+        except Exception as exc:
+            print(f"[ArcEnCiel] metadata lookup before download failed: {exc}")
+
         try:
             local_path, out_dir = path_utils.resolve_download_path(model_type, file_name, subfolder)
             os.makedirs(out_dir, exist_ok=True)
@@ -51,11 +103,25 @@ def ensure_server_routes(app: FastAPI):
         if "arcenciel.io" in url.lower() and model_id and version_id:
             final_url = f"https://arcenciel.io/api/models/{model_id}/versions/{version_id}/download"
 
-        dl.queue_download(model_id, version_id, final_url, local_path)
+        job = dl.queue_download(
+            model_id,
+            version_id,
+            final_url,
+            local_path,
+            expected_sha256=expected_hash,
+            model_data=model_data,
+            version_data=version_data,
+            download_preview=bool(data.get("download_preview", True)),
+            save_html_preview=bool(data.get("save_html_preview", False)),
+        )
         dl.start_downloads()
 
         return JSONResponse(
-            {"message": f"Queued download for {path_utils.safe_filename(file_name)}", "path": local_path},
+            {
+                "message": f"Queued download for {path_utils.safe_filename(file_name)}",
+                "path": job["path"],
+                "job_id": job["job_id"],
+            },
             status_code=202,
         )
 
@@ -92,3 +158,14 @@ def ensure_server_routes_on_last_app():
     route_registered = False
     ensure_server_routes(last_app)
     return True
+
+
+def link_status():
+    loaded = any(name == "arcenciel_link" or name.startswith("arcenciel_link.") for name in sys.modules)
+    running = False
+    if "arcenciel_link.downloader" in sys.modules:
+        try:
+            running = bool(sys.modules["arcenciel_link.downloader"].RUNNING.is_set())
+        except Exception:
+            running = False
+    return {"installed": loaded, "workerRunning": running}

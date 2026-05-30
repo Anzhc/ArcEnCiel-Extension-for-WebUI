@@ -63,6 +63,61 @@ function arcencielSetDownloadStatus(button, text, isError = false) {
   status.style.color = isError ? "#ff8a8a" : "#9ee493";
 }
 
+function arcencielPollDownloadStatus(jobId, button) {
+  if (!jobId || !button) return;
+  const poll = () => {
+    fetch(`/arcenciel/download_status/${encodeURIComponent(jobId)}`)
+      .then((resp) => resp.json())
+      .then((data) => {
+        if (data?.error) {
+          arcencielSetDownloadStatus(button, data.error, true);
+          button.disabled = false;
+          return;
+        }
+        const state = data.state || "UNKNOWN";
+        const progress = Number.isFinite(data.progress) ? data.progress : 0;
+        const suffix = progress ? ` (${progress}%)` : "";
+        arcencielSetDownloadStatus(
+          button,
+          data.message || `${state}${suffix}`,
+          state === "ERROR",
+        );
+        if (["DONE", "ERROR", "CANCELED"].includes(state)) {
+          button.disabled = false;
+          return;
+        }
+        setTimeout(poll, 1000);
+      })
+      .catch((err) => {
+        console.error("ArcEnCiel: download status fetch error:", err);
+        arcencielSetDownloadStatus(button, "Status polling failed.", true);
+        button.disabled = false;
+      });
+  };
+  setTimeout(poll, 500);
+}
+
+function arcencielLoadSubfolders(input) {
+  if (!input) return;
+  const listId = input.getAttribute("list");
+  const datalist = listId ? document.getElementById(listId) : null;
+  if (!datalist || datalist.getAttribute("data-loaded") === "true") return;
+  const modelType = input.getAttribute("data-model-type") || "OTHER";
+  fetch(`/arcenciel/folders/${encodeURIComponent(modelType)}`)
+    .then((resp) => resp.json())
+    .then((data) => {
+      if (!Array.isArray(data?.folders)) return;
+      datalist.innerHTML = "";
+      data.folders.forEach((folder) => {
+        const option = document.createElement("option");
+        option.value = folder;
+        datalist.appendChild(option);
+      });
+      datalist.setAttribute("data-loaded", "true");
+    })
+    .catch((err) => console.warn("ArcEnCiel: subfolder load failed", err));
+}
+
 /**
  * Fills txt2img fields in stable-diffusion-webui:
  * prompt, negative prompt, steps, sampler, cfg, seed, etc.
@@ -197,15 +252,19 @@ document.addEventListener("click", function (e) {
       .then((data) => {
         if (data?.error) {
           arcencielSetDownloadStatus(extBtn, data.error, true);
+          extBtn.disabled = false;
           return;
         }
         arcencielSetDownloadStatus(extBtn, data?.message || "Queued.");
+        if (data?.job_id) {
+          arcencielPollDownloadStatus(data.job_id, extBtn);
+        } else {
+          extBtn.disabled = false;
+        }
       })
       .catch((err) => {
         console.error("ArcEnCiel: extension download fetch error:", err);
         arcencielSetDownloadStatus(extBtn, "Request failed.", true);
-      })
-      .finally(() => {
         extBtn.disabled = false;
       });
 
@@ -271,6 +330,13 @@ document.addEventListener("click", function (e) {
 
     arcencielSendToTxt2Img({ prompt, negPrompt, sampler, seed, steps, cfg });
     return;
+  }
+});
+
+document.addEventListener("focusin", function (e) {
+  const subfolderInput = e.target.closest?.(".arcen_subfolder_input");
+  if (subfolderInput) {
+    arcencielLoadSubfolders(subfolderInput);
   }
 });
 

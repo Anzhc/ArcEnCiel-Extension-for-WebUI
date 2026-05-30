@@ -8,7 +8,9 @@ from bs4 import BeautifulSoup
 from modules.hashes import calculate_sha256
 
 import scripts.arcenciel_api as api
+import scripts.arcenciel_inventory as inventory
 import scripts.arcenciel_paths as path_utils
+import scripts.arcenciel_sidecars as sidecars
 
 
 def esc(value):
@@ -132,47 +134,34 @@ def create_jsons_for_models(
             yield f"<p>Found models, but none had a matching version => skipping {esc(fname)}.</p>"
             continue
 
-        if need_json:
-            model_id = matched_model.get("id", 0)
-            raw_desc = matched_model.get("description", "No description")
-            desc_text = clean_description(raw_desc)
-
-            base_model_str = matched_version.get("baseModel", "Other")
-            version_id = matched_version.get("id", 0)
-            activation_tags = matched_version.get("activationTags", [])
-            activation_text = "\n\n".join(activation_tags)
-
-            json_data = {
-                "sha256": sha_val,
-                "modelId": model_id,
-                "modelVersionId": version_id,
-                "activation text": activation_text,
-                "description": desc_text,
-                "sd version": base_model_str,
-            }
-
-            try:
-                with open(json_path, "w", encoding="utf-8") as f:
-                    json.dump(json_data, f, indent=2)
-                yield f"<p style='color:green;'>Wrote JSON => {esc(os.path.basename(json_path))}</p>"
-            except Exception as e:
-                yield f"<p style='color:red;'>Error writing JSON {esc(os.path.basename(json_path))}: {esc(e)}</p>"
-
-        if need_preview:
-            data_url = api.download_preview_image(matched_model)
-            if data_url:
-                try:
-                    raw_b64 = data_url.split(",", 1)[1]
-                    raw_data = base64.b64decode(raw_b64)
-                    with open(preview_path, "wb") as imgf:
-                        imgf.write(raw_data)
-                    yield f"<p style='color:green;'>Downloaded preview => {esc(os.path.basename(preview_path))}</p>"
-                except Exception as e:
-                    yield f"<p style='color:red;'>Error saving preview for {esc(fname)}: {esc(e)}</p>"
-            else:
-                yield f"<p style='color:orange;'>No preview available for {esc(fname)}.</p>"
+        try:
+            sidecars.write_sidecars(
+                matched_model,
+                matched_version,
+                fpath,
+                sha_local=sha_val,
+                download_preview=need_preview,
+            )
+            inventory.update_cached_hash(fpath, sha_val)
+            if need_json:
+                yield f"<p style='color:green;'>Wrote JSON/info sidecars => {esc(os.path.basename(json_path))}</p>"
+            if need_preview:
+                yield f"<p style='color:green;'>Downloaded preview sidecar for {esc(fname)}.</p>"
+        except Exception as e:
+            yield f"<p style='color:red;'>Error writing sidecars for {esc(fname)}: {esc(e)}</p>"
 
     yield "<p>Done processing all models in selected categories.</p>"
+
+
+def scan_inventory_ui():
+    try:
+        result = inventory.scan_inventory()
+        return (
+            f"<p style='color:green;'>Inventory scan complete: "
+            f"{esc(result.get('files'))} files, {esc(result.get('hashes'))} hashes.</p>"
+        )
+    except Exception as e:
+        return f"<p style='color:red;'>Inventory scan failed: {esc(e)}</p>"
 
 
 def add_utilities_subtab():
@@ -203,6 +192,7 @@ def add_utilities_subtab():
                     check_download_preview = gr.Checkbox(value=False, label="Download preview image")
 
                 generate_json_btn = gr.Button("Create JSON for Models")
+                scan_inventory_btn = gr.Button("Scan Installed Models")
                 progress_html = gr.HTML(
                     "No progress yet.",
                     elem_id="arcenciel_utilities_progress"
@@ -220,6 +210,12 @@ def add_utilities_subtab():
                         check_overwrite,
                         check_download_preview
                     ],
+                    outputs=[progress_html],
+                    queue=True
+                )
+                scan_inventory_btn.click(
+                    fn=scan_inventory_ui,
+                    inputs=[],
                     outputs=[progress_html],
                     queue=True
                 )

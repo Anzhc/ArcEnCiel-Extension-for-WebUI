@@ -7,6 +7,7 @@ import html
 
 import scripts.arcenciel_api as api
 import scripts.arcenciel_global as gl
+import scripts.arcenciel_inventory as inventory
 import scripts.arcenciel_paths as path_utils
 import scripts.arcenciel_server as server
 import scripts.arcenciel_download as dl  # For canceling downloads
@@ -46,6 +47,17 @@ def format_publish_hint(version):
     return "Not downloadable yet."
 
 
+def link_status_html():
+    try:
+        status = server.link_status()
+    except Exception:
+        status = {"installed": False, "workerRunning": False}
+    if not status.get("installed"):
+        return "<div class='arcen_link_status'>ArcEnCiel Link: not detected in this WebUI session.</div>"
+    state = "worker running" if status.get("workerRunning") else "detected"
+    return f"<div class='arcen_link_status'>ArcEnCiel Link: {esc(state)}.</div>"
+
+
 ##########################
 # Gather Subfolders
 ##########################
@@ -74,16 +86,9 @@ def build_subfolder_input_html(model_type):
           />
         """
 
-    subfolders = gather_subfolders_recursively(base_dir)
-    option_lines = ""
-    for sf in subfolders:
-        option_lines += f'<option value="{esc_attr(sf)}"/>\n'
-
     datalist_id = f"arcen_subfolders_{esc_attr(model_type.lower())}"
     html = f"""
-    <datalist id="{datalist_id}">
-      {option_lines}
-    </datalist>
+    <datalist id="{datalist_id}" data-loaded="false"></datalist>
     <input
       type="text"
       list="{datalist_id}"
@@ -220,10 +225,13 @@ def build_model_details_html(model_data):
             file_name = api.version_file_name(ver)
             direct_link = api.version_download_url(model_id, ver)
             is_downloadable = api.version_is_downloadable(ver) and bool(direct_link)
+            installed_path = inventory.find_installed_by_hashes(inventory.version_hashes(ver))
 
             html += "<div class='version_block' style='margin-bottom:1em; border:1px solid #444; padding:0.5em'>"
             html += f"<b>Version ID:</b> {esc(v_id)} | <b>Name:</b> {esc(v_name)}<br/>"
             html += f"<b>Base Model:</b> {esc(base_model)}<br/>"
+            if installed_path:
+                html += f"<div class='arcen_installed_notice'>Installed: {esc(installed_path)}</div>"
 
             if activation_tags:
                 triggers = ", ".join(esc(tag) for tag in activation_tags)
@@ -234,16 +242,7 @@ def build_model_details_html(model_data):
             if is_downloadable:
                 subfolder_html = build_subfolder_input_html(model_type)
                 display_name = file_name or "ArcEnCiel-download"
-                html += f"""
-                <div style="display:flex; align-items:center; gap:0.6em; margin-top:0.5em; flex-wrap:wrap;">
-                  <a
-                    href="{esc_attr(direct_link)}"
-                    target="_blank"
-                    class="arcen_browser_download_btn"
-                    style="margin-top:0.2em;">
-                      Download (Browser)
-                  </a>
-
+                extension_button = f"""
                   <button
                     class='arcen_extension_download_btn'
                     data-model-id="{esc_attr(model_id)}"
@@ -254,6 +253,27 @@ def build_model_details_html(model_data):
                     style="margin-top:0.2em;">
                       Download with Extension
                   </button>
+                """
+                if installed_path:
+                    extension_button = """
+                  <button
+                    class='arcen_extension_download_btn'
+                    disabled
+                    style="margin-top:0.2em;">
+                      Already installed
+                  </button>
+                """
+                html += f"""
+                <div style="display:flex; align-items:center; gap:0.6em; margin-top:0.5em; flex-wrap:wrap;">
+                  <a
+                    href="{esc_attr(direct_link)}"
+                    target="_blank"
+                    class="arcen_browser_download_btn"
+                    style="margin-top:0.2em;">
+                      Download (Browser)
+                  </a>
+
+                  {extension_button}
 
                   {subfolder_html}
                   <span class="arcen_download_status" aria-live="polite"></span>
@@ -288,10 +308,17 @@ def build_gallery_html(data_list, total_pages=1, card_scale=30):
         title = item.get("title", "Untitled")
         type_ = item.get("type", "UNKNOWN")
         preview_url = item.get("preview_local") or PLACEHOLDER_IMG
+        install_state = inventory.model_install_state(item)
+        badge_html = ""
+        if install_state == "installed":
+            badge_html = "<div class='arcen_card_badge installed'>Installed</div>"
+        elif install_state == "partial":
+            badge_html = "<div class='arcen_card_badge partial'>Partial</div>"
 
         html += f"""
           <div class='arcen_model_card' data-model-id="{esc_attr(m_id)}">
             <img class='model-bg' src="{esc_attr(preview_url)}" alt="Preview" />
+            {badge_html}
             <div class='model-info'>
               <b>{esc(title)}</b><br/>
               Type: {esc(type_)}<br/>
@@ -447,6 +474,8 @@ def on_ui_tabs():
 
     with gr.Blocks(elem_id="arcencielTab", css="style_html.css") as arcenciel_interface:
         gr.Markdown("## ArcEnCiel Browser (Parallel Download)")
+        link_status = gr.HTML(link_status_html(), elem_id="arcenciel_link_status")
+        arcenciel_interface.load(fn=link_status_html, inputs=[], outputs=[link_status])
 
         with gr.Tabs():
             # Sub-tab #1: "Browser"

@@ -68,6 +68,23 @@
   box-sizing: border-box;
 }
 
+.arcen_card_badge {
+  position: absolute;
+  top: 0.5em;
+  left: 0.5em;
+  z-index: 3;
+  padding: 0.25em 0.5em;
+  border-radius: 3px;
+  font-size: 0.9em;
+  font-weight: bold;
+  background: rgba(23, 90, 45, 0.92);
+  color: #f5fff7;
+}
+
+.arcen_card_badge.partial {
+  background: rgba(119, 91, 28, 0.92);
+}
+
 /* Model detail container, gallery, version block, etc. */
 .arcen_model_detail_container {
   margin-top: 1em;
@@ -140,6 +157,18 @@
 
 .arcen_upcoming_notice {
   font-weight: bold;
+}
+
+.arcen_installed_notice {
+  margin: 0.4em 0;
+  color: #9ee493;
+  font-weight: bold;
+  overflow-wrap: anywhere;
+}
+
+.arcen_link_status {
+  color: #cfd7ff;
+  margin: 0.25em 0 0.75em;
 }
 
 /* Make code or pre blocks wrap properly in model descriptions */
