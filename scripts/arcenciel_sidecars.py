@@ -23,13 +23,40 @@ def _activation_text(version):
     return " || ".join(str(tag) for tag in tags if tag)
 
 
-def _preview_url(model_data, version):
+def resolve_preview_url(model_data, version):
+    model_data = model_data if isinstance(model_data, dict) else {}
     candidates = []
+
+    if isinstance(version, dict):
+        image_order = version.get("imageOrder")
+        model_id = model_data.get("id") if isinstance(model_data, dict) else None
+        if image_order and model_id:
+            gallery = api.normalize_gallery_items(api.get_model_gallery(model_id))
+            ordered = _ordered_gallery_items(gallery, version)
+            if ordered:
+                candidates.extend(ordered)
+
     if isinstance(version, dict):
         candidates.extend(version.get("images") or [])
         candidates.extend(version.get("gallery") or [])
+
     candidates.extend(api.iter_model_images(model_data))
+
+    # Ensure we keep the first candidate order deterministic and prefer the version order.
+    seen = set()
+    ordered_candidates = []
     for item in candidates:
+        if not isinstance(item, dict):
+            continue
+        key = item.get("id")
+        key = str(key) if key is not None else None
+        if key is not None and key in seen:
+            continue
+        if key is not None:
+            seen.add(key)
+        ordered_candidates.append(item)
+
+    for item in ordered_candidates:
         url = api.get_image_url(item, prefer="preview")
         if url:
             return url
@@ -47,6 +74,10 @@ def _preview_url(model_data, version):
             if url:
                 return url
     return ""
+
+
+def _preview_url(model_data, version):
+    return resolve_preview_url(model_data, version)
 
 
 def _ordered_gallery_items(gallery, version):
@@ -130,7 +161,10 @@ def write_sidecars(model_data, version, model_path, sha_local="", download_previ
     cover_name = None
     if download_preview:
         try:
-            preview_name, cover_name = _save_preview(_preview_url(model_data, version), model_path)
+            preview_name, cover_name = _save_preview(
+                resolve_preview_url(model_data, version),
+                model_path,
+            )
         except Exception as exc:
             print(f"[ArcEnCiel] preview sidecar failed for {model_path.name}: {exc}")
 
@@ -156,7 +190,7 @@ def write_sidecars(model_data, version, model_path, sha_local="", download_previ
     if save_html:
         _write_html_preview(metadata, model_path)
 
-    return {"info": str(info_path), "preview": preview_name}
+    return {"info": str(info_path), "preview": preview_name, "cover": cover_name}
 
 
 def _write_html_preview(metadata, model_path):

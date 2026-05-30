@@ -161,6 +161,7 @@ def build_model_details_html(model_data):
     title = model_data.get("title", "Unknown Title")
     desc = model_data.get("description", "No description available.")
     model_type = model_data.get("type", "Unknown Type")
+    model_base_model = model_data.get("baseModel", "Unknown base")
     tags = model_data.get("tags", [])
     uploader = model_data.get("uploader", {})
     versions = model_data.get("versions", [])
@@ -179,22 +180,35 @@ def build_model_details_html(model_data):
         if all_ver_imgs:
             gallery_items = all_ver_imgs
 
-    html = """
-<div class='arcen_model_detail_container' style='display:flex; gap:1em;'>
-  <div style='flex:1; min-width:300px;'>
-"""
-    html += f"<h2>{esc(title)} (ID: {esc(model_id)})</h2>"
-    html += f"<div>Type: {esc(model_type)}</div>"
-
-    if tags:
-        tag_str = ", ".join(esc(tag_name(t)) for t in tags)
-        html += f"<div>Tags: {tag_str}</div>"
+    cover_url = ""
+    if gallery_items:
+        cover_url = api.get_image_url(gallery_items[0], prefer="preview") or ""
 
     uname = uploader.get("username", "N/A")
-    html += f"<div>Uploader: {esc(uname)}</div>"
-    html += f"<div class='model_description'><p>{multiline(desc)}</p></div>"
+    tag_str = ", ".join(esc(tag_name(t)) for t in tags) if tags else "No tags"
+    uname = esc(uname)
 
-    # Gallery
+    html = f"""
+<div class='arcen_model_detail_container'>
+  <div class='arcen_model_detail_main'>
+    <div class='arcen_model_detail_header'>
+      <h2>{esc(title)} <span class='arcen_model_detail_badge'>ID {esc(model_id)}</span></h2>
+      <div class='arcen_chip_row'>
+        <span class='arcen_model_chip'>{esc(model_type)}</span>
+        <span class='arcen_model_chip'>{esc(model_base_model)}</span>
+      </div>
+      <div>Uploader: {uname}</div>
+      <div>Tags: {tag_str}</div>
+    </div>
+"""
+
+    if cover_url:
+        html += f"""
+    <div class='arcen_model_cover'>
+      <img src='{esc_attr(cover_url)}' alt='{esc_attr(title)} cover' />
+    </div>
+"""
+
     html += "<h3>Gallery</h3><div class='arcen_model_gallery'>"
     if not gallery_items:
         html += "<div>No gallery images found.</div>"
@@ -203,8 +217,8 @@ def build_model_details_html(model_data):
             img_id = img_item.get("id", "")
             img_url = api.get_image_url(img_item, prefer="thumb") or PLACEHOLDER_IMG
             html += f"""
-            <div class='arcen_gallery_item' data-image-id="{esc_attr(img_id)}" style="cursor:pointer;">
-              <img src='{esc_attr(img_url)}' alt='gallery item' style="max-width:100px;"/>
+            <div class='arcen_gallery_item' data-image-id="{esc_attr(img_id)}">
+              <img src='{esc_attr(img_url)}' alt='gallery item'/>
             </div>
             """
     html += "</div>"
@@ -225,7 +239,7 @@ def build_model_details_html(model_data):
             is_downloadable = api.version_is_downloadable(ver) and bool(direct_link)
             installed_path = inventory.find_installed_by_hashes(inventory.version_hashes(ver))
 
-            html += "<div class='version_block' style='margin-bottom:1em; border:1px solid #444; padding:0.5em'>"
+            html += "<div class='version_block arcen_version_block'>"
             html += f"<b>Version ID:</b> {esc(v_id)} | <b>Name:</b> {esc(v_name)}<br/>"
             html += f"<b>Base Model:</b> {esc(base_model)}<br/>"
             if installed_path:
@@ -248,7 +262,7 @@ def build_model_details_html(model_data):
                     data-model-type="{esc_attr(model_type)}"
                     data-download-url="{esc_attr(direct_link)}"
                     data-file-name="{esc_attr(display_name)}"
-                    style="margin-top:0.2em;">
+                >
                       Download with Extension
                   </button>
                 """
@@ -257,17 +271,16 @@ def build_model_details_html(model_data):
                   <button
                     class='arcen_extension_download_btn'
                     disabled
-                    style="margin-top:0.2em;">
+                >
                       Already installed
                   </button>
                 """
                 html += f"""
-                <div style="display:flex; align-items:center; gap:0.6em; margin-top:0.5em; flex-wrap:wrap;">
+                <div class='arcen_version_actions'>
                   <a
                     href="{esc_attr(direct_link)}"
                     target="_blank"
-                    class="arcen_browser_download_btn"
-                    style="margin-top:0.2em;">
+                    class="arcen_browser_download_btn">
                       Download (Browser)
                   </a>
 
@@ -279,7 +292,7 @@ def build_model_details_html(model_data):
                 """
             else:
                 html += f"""
-                <div class="arcen_upcoming_notice" style="margin-top:0.5em; color:#f0c36d;">
+                <div class="arcen_upcoming_notice">
                   {format_publish_hint(ver)}
                 </div>
                 """
@@ -288,8 +301,8 @@ def build_model_details_html(model_data):
 
     html += """
   </div>
-  <div style='flex:1; min-width:300px;' id='arcen_image_details_panel'>
-    <div style='padding:0.5em; border:1px solid #444;'>
+  <div class='arcen_image_details_panel' id='arcen_image_details_panel'>
+    <div>
       <i>Select an image to see details here.</i>
     </div>
   </div>
@@ -298,7 +311,7 @@ def build_model_details_html(model_data):
     return html
 
 def build_gallery_html(data_list, total_pages=1, card_scale=30):
-    html = f"<div>Total pages: {esc(total_pages)}</div>"
+    html = f"<div class='arcen_results_meta'>Total pages: {esc(total_pages)}</div>"
     html += "<div class='arcen_model_list'>"
 
     for item in data_list:
@@ -315,12 +328,14 @@ def build_gallery_html(data_list, total_pages=1, card_scale=30):
 
         html += f"""
           <div class='arcen_model_card' data-model-id="{esc_attr(m_id)}">
-            <img class='model-bg' src="{esc_attr(preview_url)}" alt="Preview" />
+            <div class='arcen_card_image'>
+              <img class='model-bg' src="{esc_attr(preview_url)}" alt="Preview" />
+            </div>
             {badge_html}
-            <div class='model-info'>
-              <b>{esc(title)}</b><br/>
-              Type: {esc(type_)}<br/>
-              ID: {esc(m_id)}
+            <div class='arcen_model_info'>
+              <h4>{esc(title)}</h4>
+              <div><span class='arcen_model_card_chip'>{esc(type_)}</span></div>
+              <div>ID: {esc(m_id)}</div>
             </div>
           </div>
         """
@@ -519,9 +534,6 @@ def on_ui_tabs():
                                        elem_id="arcenciel_results_html")
                 model_details_html = gr.HTML("<div>Select a card to see model details</div>",
                                              elem_id="arcenciel_model_details_html")
-
-                # Cancel output label
-                cancel_status_label = gr.Textbox(label="Cancel Status", value="", interactive=False)
 
                 # Search button => do_search_and_download
                 fetch_download_btn.click(

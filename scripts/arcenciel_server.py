@@ -11,6 +11,7 @@ import scripts.arcenciel_api as api
 import scripts.arcenciel_gui as gui
 import scripts.arcenciel_inventory as inventory
 import scripts.arcenciel_paths as path_utils
+import scripts.arcenciel_sidecars as sidecars
 import scripts.arcenciel_settings as settings
 
 route_registered = False  # A global guard so we don't define routes multiple times in the same session
@@ -94,10 +95,15 @@ def ensure_server_routes(app: FastAPI):
 
         model_data = {}
         version_data = {}
+        model_title = ""
+        version_name = ""
+        base_model = ""
+        cover_url = ""
         expected_hash = ""
         try:
             if str(model_id).isdigit():
                 model_data = api.fetch_model_details(model_id)
+                model_title = model_data.get("title", "").strip()
                 for version in model_data.get("versions") or []:
                     if str(version.get("id")) == str(version_id):
                         version_data = version
@@ -113,6 +119,10 @@ def ensure_server_routes(app: FastAPI):
                         },
                         status_code=409,
                     )
+                if version_data:
+                    version_name = version_data.get("versionName", "").strip()
+                    base_model = version_data.get("baseModel", "").strip()
+                    cover_url = sidecars.resolve_preview_url(model_data, version_data)
         except Exception as exc:
             print(f"[ArcEnCiel] metadata lookup before download failed: {exc}")
 
@@ -135,6 +145,11 @@ def ensure_server_routes(app: FastAPI):
             expected_sha256=expected_hash,
             model_data=model_data,
             version_data=version_data,
+            model_title=model_title,
+            version_name=version_name,
+            base_model=base_model,
+            model_type=model_type,
+            cover_url=cover_url,
             download_preview=bool(data.get("download_preview", settings.download_preview_enabled())),
             save_html_preview=bool(data.get("save_html_preview", settings.save_html_preview_enabled())),
         )

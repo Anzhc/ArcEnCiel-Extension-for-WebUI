@@ -73,9 +73,15 @@ def _snapshot_job(job):
         "job_id": job["job_id"],
         "model_id": job.get("model_id"),
         "version_id": job.get("version_id"),
+        "model_title": job.get("model_title", ""),
+        "version_name": job.get("version_name", ""),
+        "base_model": job.get("base_model", ""),
+        "model_type": job.get("model_type", ""),
+        "cover_url": job.get("cover_url", ""),
         "state": job.get("state"),
         "progress": job.get("progress", 0),
         "message": job.get("message", ""),
+        "cover_path": job.get("cover_path", ""),
         "path": str(job.get("target_path", "")),
         "file_name": Path(job.get("target_path", "")).name if job.get("target_path") else "",
         "sha256": job.get("sha256", ""),
@@ -110,6 +116,11 @@ def queue_download(
     expected_sha256="",
     model_data=None,
     version_data=None,
+    model_title="",
+    version_name="",
+    base_model="",
+    model_type="",
+    cover_url="",
     download_preview=True,
     save_html_preview=False,
 ):
@@ -125,11 +136,17 @@ def queue_download(
         "expected_sha256": str(expected_sha256 or "").lower(),
         "model_data": model_data,
         "version_data": version_data,
+        "model_title": str(model_title or "").strip(),
+        "version_name": str(version_name or "").strip(),
+        "base_model": str(base_model or "").strip(),
+        "model_type": str(model_type or "").strip().upper(),
+        "cover_url": str(cover_url or "").strip(),
         "download_preview": download_preview,
         "save_html_preview": save_html_preview,
         "state": "QUEUED",
         "progress": 0,
         "message": "Queued",
+        "cover_path": "",
         "created_at": now,
         "updated_at": now,
         "retry_count": 0,
@@ -197,7 +214,7 @@ def _run_job(job):
         _set_job(job_id, state="SIDECARS", progress=98, message="Writing sidecars")
         inventory.update_cached_hash(job["target_path"], digest)
         if job.get("model_data") and job.get("version_data"):
-            sidecars.write_sidecars(
+            sidecar_result = sidecars.write_sidecars(
                 job["model_data"],
                 job["version_data"],
                 job["target_path"],
@@ -205,6 +222,10 @@ def _run_job(job):
                 download_preview=job.get("download_preview", True),
                 save_html=job.get("save_html_preview", False),
             )
+            if sidecar_result.get("cover"):
+                cover_path = Path(job["target_path"]).with_name(sidecar_result["cover"])
+                if cover_path.exists():
+                    _set_job(job_id, cover_path=str(cover_path))
         _set_job(
             job_id,
             state="DONE",
@@ -344,6 +365,11 @@ def retry_download(job_id):
             "expected_sha256": old_job.get("expected_sha256", ""),
             "model_data": old_job.get("model_data"),
             "version_data": old_job.get("version_data"),
+            "model_title": old_job.get("model_title"),
+            "version_name": old_job.get("version_name"),
+            "base_model": old_job.get("base_model"),
+            "model_type": old_job.get("model_type"),
+            "cover_url": old_job.get("cover_url"),
             "download_preview": old_job.get("download_preview", True),
             "save_html_preview": old_job.get("save_html_preview", False),
         }
@@ -356,6 +382,11 @@ def retry_download(job_id):
         expected_sha256=retry_source["expected_sha256"],
         model_data=retry_source["model_data"],
         version_data=retry_source["version_data"],
+        model_title=retry_source["model_title"],
+        version_name=retry_source["version_name"],
+        base_model=retry_source["base_model"],
+        model_type=retry_source["model_type"],
+        cover_url=retry_source["cover_url"],
         download_preview=retry_source["download_preview"],
         save_html_preview=retry_source["save_html_preview"],
     )

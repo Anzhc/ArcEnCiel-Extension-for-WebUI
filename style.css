@@ -9,31 +9,38 @@
   margin-bottom: 1em;
   border-radius: 6px;
 }
+
 .model-block img,
 .model-block video {
   max-width: 100%;
 }
+
 .model-block code {
   background: #272727;
   padding: 3px 6px;
   border-radius: 3px;
 }
 
-/* The container that holds multiple model cards in a grid-like layout */
-.arcen_model_list {
-  display: flex; /* make a flex container */
-  flex-wrap: wrap; /* allow wrapping to new rows */
-  gap: 10px; /* space between cards */
-  justify-content: center; /* center them horizontally */
-  margin: 1em auto; /* optional spacing */
+/* Browser gallery/cards */
+.arcen_results_meta {
+  margin: 0.5em 0;
+  opacity: 0.85;
 }
 
-/* Each card is a tile with a default width/height */
+.arcen_model_list {
+  --arcen-card-width: 30em;
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(var(--arcen-card-width), 1fr)
+  );
+  gap: 10px;
+}
+
 .arcen_model_card {
   position: relative;
-  width: 30em; /* default size. If you want dynamic sizing, override via JS or inline style */
-  height: 40em;
   background: #333;
+  min-height: 260px;
   border-radius: 8px;
   color: #fafafa;
   overflow: hidden;
@@ -41,31 +48,28 @@
   text-align: center;
   transition: transform 0.2s;
   box-sizing: border-box;
-}
-.arcen_model_card:hover {
-  transform: scale(1.05);
+  border: 1px solid #4a4a4a;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
 }
 
-/* The background image taking up entire card area */
-.arcen_model_card img.model-bg {
-  position: absolute;
-  top: 0;
-  left: 0;
+.arcen_model_card:hover {
+  transform: scale(1.03);
+}
+
+.arcen_card_image {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+}
+
+.arcen_card_image img.model-bg {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  z-index: 1;
-}
-
-/* The text overlay at the bottom, on top of the image */
-.arcen_model_card .model-info {
-  position: absolute;
-  bottom: 0;
-  width: 100%;
-  padding: 0.5em;
-  background: rgba(0, 0, 0, 0.6);
-  z-index: 2;
-  box-sizing: border-box;
+  display: block;
 }
 
 .arcen_card_badge {
@@ -85,43 +89,153 @@
   background: rgba(119, 91, 28, 0.92);
 }
 
-/* Model detail container, gallery, version block, etc. */
+.arcen_model_info {
+  flex: 1;
+  padding: 0.7em;
+  text-align: left;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.arcen_model_info h4 {
+  margin: 0 0 0.4em;
+  font-size: 1em;
+  line-height: 1.2;
+}
+
+.arcen_model_info p {
+  margin: 0 0 0.2em;
+}
+
+.arcen_model_card_chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1em 0.45em;
+  border-radius: 99px;
+  border: 1px solid rgba(190, 210, 255, 0.35);
+  color: #d6deff;
+  font-size: 0.85em;
+  line-height: 1;
+}
+
+/* Model detail view */
 .arcen_model_detail_container {
   margin-top: 1em;
-  padding: 1em;
   border: 1px solid #444;
   border-radius: 6px;
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+  gap: 1em;
 }
-.arcen_model_detail_container .model_description {
-  margin: 1em 0;
+
+.arcen_model_detail_main {
+  padding: 0.8em 1em 1em;
 }
-.arcen_model_gallery {
+
+.arcen_model_detail_header h2 {
+  margin: 0;
+}
+
+.arcen_model_detail_badge {
+  display: inline-block;
+  margin-left: 0.4em;
+  font-size: 0.65em;
+  border: 1px solid #5d86ff;
+  border-radius: 999px;
+  padding: 0.15em 0.45em;
+  vertical-align: middle;
+  color: #d8e0ff;
+}
+
+.arcen_chip_row {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 0.4em;
+  margin: 0.5em 0;
 }
-.arcen_gallery_item img {
-  max-width: 200px;
-  max-height: 200px;
-  object-fit: cover;
+
+.arcen_model_chip {
+  border: 1px solid #5f6f8a;
+  border-radius: 99px;
+  padding: 0.18em 0.5em;
+  font-size: 0.85em;
+}
+
+.arcen_model_cover {
+  margin: 0.6em 0;
+}
+
+.arcen_model_cover img {
+  width: 100%;
+  max-width: 420px;
+  border-radius: 6px;
+  border: 1px solid #3f3f3f;
+}
+
+.arcen_model_tags {
+  margin-top: 0.5em;
+  color: #d8d8d8;
+}
+
+.arcen_model_detail_container .model_description,
+.arcen_model_description {
+  margin: 1em 0;
+}
+
+.arcen_model_gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.arcen_gallery_item {
+  aspect-ratio: 1 / 1;
+  border: 1px solid #3a3a3a;
   border-radius: 4px;
+  overflow: hidden;
 }
+
+.arcen_gallery_item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .version_block {
   background: #222;
   border-radius: 4px;
   margin-bottom: 1em;
 }
 
-/* Download button styles */
+.arcen_version_block {
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 0.55em;
+}
+
+.arcen_version_actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  margin-top: 0.55em;
+  flex-wrap: wrap;
+}
+
+.arcen_image_details_panel {
+  padding: 0.8em;
+  border-left: 1px solid #444;
+}
+
+/* Buttons */
 .arcen_extension_download_btn,
 .arcen_browser_download_btn,
-.arcen_send_to_txt2img_btn {
+.arcen_send_to_txt2img_btn,
+.arcen_download_action {
   background-color: #313131 !important;
   color: #f3f3f3 !important;
   font-size: 1.2em !important;
   font-weight: bold !important;
-  padding: 0.3em 0.3em !important;
-  border: none !important;
+  padding: 0.3em 0.6em !important;
+  border: 1px solid #5a5a5a !important;
   border-radius: 2px !important;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
   transition:
@@ -129,19 +243,22 @@
     transform 0.2s,
     box-shadow 0.2s !important;
   cursor: pointer !important;
-  margin-top: 0.2em !important;
   display: inline-block !important;
 }
+
 .arcen_extension_download_btn:hover,
 .arcen_browser_download_btn:hover,
-.arcen_send_to_txt2img_btn:hover {
+.arcen_send_to_txt2img_btn:hover,
+.arcen_download_action:hover {
   background-color: #34416d !important;
   transform: scale(1.02);
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
 }
+
 .arcen_extension_download_btn:active,
 .arcen_browser_download_btn:active,
-.arcen_send_to_txt2img_btn:active {
+.arcen_send_to_txt2img_btn:active,
+.arcen_download_action:active {
   transform: scale(0.98);
 }
 
@@ -157,6 +274,8 @@
 
 .arcen_upcoming_notice {
   font-weight: bold;
+  margin-top: 0.5em;
+  color: #f0c36d;
 }
 
 .arcen_installed_notice {
@@ -184,17 +303,12 @@
 
 .arcen_download_toolbar button,
 .arcen_download_action {
-  background: #313131;
-  color: #f3f3f3;
-  border: 1px solid #555;
-  border-radius: 3px;
   padding: 0.35em 0.65em;
-  cursor: pointer;
 }
 
 .arcen_download_toolbar button:hover,
 .arcen_download_action:hover {
-  background: #34416d;
+  background-color: #34416d;
 }
 
 .arcen_download_history {
@@ -213,52 +327,107 @@
   color: #ff9f9f;
 }
 
-.arcen_download_table {
+.arcen_download_cards {
+  display: grid;
+  gap: 0.7em;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  padding: 0.6em;
+}
+
+.arcen_download_card {
+  border: 1px solid #454545;
+  border-radius: 8px;
+  background: #1f1f1f;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 124px minmax(0, 1fr);
+}
+
+.arcen_download_card_media {
+  min-height: 120px;
+  background: #2b2b2b;
+}
+
+.arcen_download_card_cover {
   width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
-.arcen_download_table th,
-.arcen_download_table td {
-  padding: 0.55em;
-  border-bottom: 1px solid #3a3a3a;
-  vertical-align: top;
-  overflow-wrap: anywhere;
+.arcen_download_card_cover_placeholder {
+  width: 100%;
+  height: 100%;
+  color: #9ea8bb;
+  font-size: 0.8em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: linear-gradient(160deg, #2d3344, #1f2635);
 }
 
-.arcen_download_table th {
-  text-align: left;
-  background: #242424;
-  position: sticky;
-  top: 0;
-  z-index: 1;
+.arcen_download_card_body {
+  padding: 0.6em;
 }
 
-.arcen_download_file {
+.arcen_download_card_title {
+  font-weight: 600;
+  font-size: 0.95em;
+  margin-bottom: 0.2em;
+}
+
+.arcen_download_card_subtitle,
+.arcen_download_meta {
+  color: #b9bfce;
+  font-size: 0.84em;
+}
+
+.arcen_download_card_subtitle {
+  margin-bottom: 0.3em;
+}
+
+.arcen_download_state span {
   font-weight: bold;
 }
 
-.arcen_download_path {
-  margin-top: 0.2em;
-  color: #b7b7b7;
-  font-size: 0.9em;
-}
-
-.arcen_download_state {
-  font-weight: bold;
-}
-
-.arcen_download_row.state-done .arcen_download_state {
+.arcen_download_card.state-done .arcen_download_state span {
   color: #9ee493;
 }
 
-.arcen_download_row.state-error .arcen_download_state {
+.arcen_download_card.state-error .arcen_download_state span {
   color: #ff9f9f;
 }
 
-.arcen_download_row.state-canceled .arcen_download_state {
+.arcen_download_card.state-canceled .arcen_download_state span {
   color: #f0c36d;
+}
+
+.arcen_download_card.state-in_progress .arcen_download_state span {
+  color: #6ea8fe;
+}
+
+.arcen_download_card.state-default .arcen_download_state span {
+  color: #cfd7ff;
+}
+
+.arcen_download_message {
+  font-size: 0.85em;
+  min-height: 2.1em;
+}
+
+.arcen_download_path {
+  margin-top: 0.25em;
+  color: #9ca8bc;
+  font-size: 0.8em;
+  overflow-wrap: anywhere;
+}
+
+.arcen_download_updated,
+.arcen_download_progress_text {
+  font-size: 0.9em;
+  color: #b1b6c4;
+  margin: 0.2em 0;
 }
 
 .arcen_download_progress {
@@ -275,9 +444,11 @@
   background: #6ea8fe;
 }
 
-.arcen_download_progress_text {
-  margin-top: 0.2em;
-  font-size: 0.9em;
+.arcen_download_card_actions {
+  margin-top: 0.4em;
+  display: flex;
+  gap: 0.4em;
+  flex-wrap: wrap;
 }
 
 /* Make code or pre blocks wrap properly in model descriptions */
@@ -291,7 +462,7 @@
 
 /* Popup for #arcenciel_settings_popup */
 #arcenciel_settings_popup {
-  display: none; /* hidden by default, shown via JS toggle */
+  display: none;
   position: absolute;
   top: 60px;
   right: 10px;
@@ -308,34 +479,34 @@
   width: 50em !important;
   align-self: center;
 }
+
 #arcen_run_row button#arcen_prev_btn,
 #arcen_run_row button#arcen_next_btn {
   width: 10em !important;
 }
+
 #arcen_run_row button#arcen_run_btn {
   width: 20em !important;
-  margin: 0 auto; /* center horizontally if possible */
+  margin: 0 auto;
 }
 
 /* Basic styling for the subfolder input */
 .arcen_subfolder_input {
-  background-color: #272727 !important; /* or any dark background */
-  color: #f0f0f0 !important; /* light text for contrast */
-  border: 1px solid #34416d !important; /* a subtle border */
+  background-color: #272727 !important;
+  color: #f0f0f0 !important;
+  border: 1px solid #34416d !important;
   padding: 0.2em 0.4em !important;
   border-radius: 4px !important;
-  outline: none !important; /* optional, remove focus outline */
-  margin-top: 0.2em !important; /* a bit of vertical spacing if needed */
+  outline: none !important;
+  margin-top: 0.2em !important;
 }
 
-/* If you want a hover effect: */
 .arcen_subfolder_input:hover {
-  border-color: #999 !important; /* highlight border on hover */
+  border-color: #999 !important;
 }
 
-/* If you want a focus effect: */
 .arcen_subfolder_input:focus {
-  border-color: #aaf !important; /* bluish highlight on focus */
+  border-color: #aaf !important;
 }
 
 /* Utilities progress panel styling */

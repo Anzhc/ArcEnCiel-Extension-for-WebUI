@@ -118,6 +118,24 @@ function arcencielFormatTimestamp(timestamp) {
   return new Date(seconds * 1000).toLocaleString();
 }
 
+function arcencielStateClass(state) {
+  switch (state) {
+    case "DONE":
+      return "done";
+    case "ERROR":
+      return "error";
+    case "CANCELED":
+      return "canceled";
+    case "RETRYING":
+    case "DOWNLOADING":
+    case "QUEUED":
+    case "SIDECARS":
+      return "in_progress";
+    default:
+      return "default";
+  }
+}
+
 function arcencielRenderDownloadHistory(jobs) {
   const panel = arcencielQuerySelector("#arcenciel_download_history_live");
   if (!panel) return;
@@ -147,39 +165,48 @@ function arcencielRenderDownloadHistory(jobs) {
           `<button type="button" class="arcen_download_action" data-action="retry" data-job-id="${arcencielEscapeHtml(job.job_id)}">Retry</button>`,
         );
       }
+      const title = arcencielEscapeHtml(
+        job.model_title || job.file_name || job.path || job.job_id,
+      );
+      const version = arcencielEscapeHtml(job.version_name || "");
+      const subtitle = [
+        version ? `Version ${version}` : "",
+        job.base_model ? `Base ${arcencielEscapeHtml(job.base_model)}` : "",
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      const cover = arcencielEscapeHtml(job.cover_url || "");
+      const coverEl = cover
+        ? `<img class="arcen_download_card_cover" src="${cover}" alt="model cover" />`
+        : `<div class="arcen_download_card_cover arcen_download_card_cover_placeholder">No cover</div>`;
       return `
-        <tr class="arcen_download_row state-${arcencielEscapeHtml(state.toLowerCase())}">
-          <td>
-            <div class="arcen_download_file">${arcencielEscapeHtml(job.file_name || job.path || job.job_id)}</div>
-            <div class="arcen_download_path">${arcencielEscapeHtml(job.path || "")}</div>
-          </td>
-          <td><span class="arcen_download_state">${arcencielEscapeHtml(state)}</span></td>
-          <td>
-            <div class="arcen_download_progress"><span style="width:${Math.max(0, Math.min(100, progress))}%"></span></div>
+        <article class="arcen_download_card state-${arcencielStateClass(state)}">
+          <div class="arcen_download_card_media">
+            ${coverEl}
+          </div>
+          <div class="arcen_download_card_body">
+            <div class="arcen_download_card_title">${title}</div>
+            <div class="arcen_download_card_subtitle">${subtitle}</div>
+            <div class="arcen_download_meta">${arcencielEscapeHtml(job.model_type || "UNKNOWN")} · ${arcencielEscapeHtml(job.file_name || "")}</div>
+            <div class="arcen_download_state"><span>${arcencielEscapeHtml(state)}</span></div>
+            <div class="arcen_download_message">${arcencielEscapeHtml(job.message || "")}</div>
+            <div class="arcen_download_progress">
+              <span style="width:${Math.max(0, Math.min(100, progress))}%"></span>
+            </div>
             <div class="arcen_download_progress_text">${progress}%</div>
-          </td>
-          <td>${arcencielEscapeHtml(job.message || "")}</td>
-          <td>${arcencielEscapeHtml(arcencielFormatTimestamp(job.updated_at || job.created_at))}</td>
-          <td>${actions.join(" ")}</td>
-        </tr>
+            <div class="arcen_download_path">${arcencielEscapeHtml(job.path || "")}</div>
+            <div class="arcen_download_updated">
+              Updated ${arcencielEscapeHtml(arcencielFormatTimestamp(job.updated_at || job.created_at))}
+            </div>
+            <div class="arcen_download_card_actions">${actions.join(" ")}</div>
+          </div>
+        </article>
       `;
     })
     .join("");
 
   panel.innerHTML = `
-    <table class="arcen_download_table">
-      <thead>
-        <tr>
-          <th>File</th>
-          <th>Status</th>
-          <th>Progress</th>
-          <th>Message</th>
-          <th>Updated</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
+    <div class="arcen_download_cards">${rows}</div>
   `;
 }
 
@@ -546,8 +573,10 @@ function setupArcencielSliderObserver() {
     const val = parseFloat(event.target.value) || 30;
     const height = Math.round(val * 1.5);
     styleTag.textContent = `
+        .arcen_model_list {
+          --arcen-card-width: ${val}em;
+        }
         .arcen_model_card {
-          width: ${val}em !important;
           height: ${height}em !important;
         }
       `;
