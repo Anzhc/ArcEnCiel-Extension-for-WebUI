@@ -7,6 +7,7 @@ from pathlib import Path
 
 SAVED_PATHS_FILE = Path(__file__).parent.parent / "save_paths.txt"
 # ^ This places save_paths.txt in the extension root folder
+_DEBUG_PATHS = bool(os.getenv("ARCENCIEL_DEBUG_PATHS"))
 
 # The known model types we want to handle
 KNOWN_TYPES = ["LORA", "CHECKPOINT", "VAE", "EMBEDDING", "SEGMENTATION", "OTHER"]
@@ -119,7 +120,8 @@ def load_paths():
     If file doesn't exist, create it with portable WebUI-relative paths.
     Return a dict { "LORA": "...", "CHECKPOINT": "...", ... }
     """
-    print("[ArcEnCiel] load_paths() reading from:", SAVED_PATHS_FILE)
+    if _DEBUG_PATHS:
+        print("[ArcEnCiel] load_paths() reading from:", SAVED_PATHS_FILE)
     raw_defaults = default_paths(raw=True)
 
     if not SAVED_PATHS_FILE.exists():

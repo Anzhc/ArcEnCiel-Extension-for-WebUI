@@ -33,33 +33,47 @@ def _preview_url(model_data, version):
         url = api.get_image_url(item, prefer="preview")
         if url:
             return url
+
+    model_id = model_data.get("id") if isinstance(model_data, dict) else None
+    if model_id:
+        gallery = api.normalize_gallery_items(api.get_model_gallery(model_id))
+        for item in gallery:
+            url = api.get_image_url(item, prefer="preview")
+            if url:
+                return url
     return ""
 
 
 def _save_preview(preview_url, model_path):
     if not preview_url:
-        return None
+        return None, None
 
     response = requests.get(preview_url, timeout=30)
     response.raise_for_status()
 
     model_path = Path(model_path)
     png_path = model_path.with_suffix(".preview.png")
+    cover_path = model_path.with_suffix(".png")
     try:
         from PIL import Image
 
         image = Image.open(BytesIO(response.content)).convert("RGBA")
         image.save(png_path, format="PNG")
-        return png_path.name
+        if not cover_path.exists():
+            image.save(cover_path, format="PNG")
+        return png_path.name, cover_path.name
     except Exception:
         content_type = (response.headers.get("content-type") or "").lower()
         suffix = ".webp" if "webp" in content_type else ".jpg"
         raw_path = model_path.with_suffix(f".preview{suffix}")
         raw_path.write_bytes(response.content)
-        return raw_path.name
+        cover_raw_path = model_path.with_suffix(suffix)
+        if not cover_raw_path.exists():
+            cover_raw_path.write_bytes(response.content)
+        return raw_path.name, cover_raw_path.name
 
 
-def _metadata(model_data, version, model_path, sha_local, preview_name):
+def _metadata(model_data, version, model_path, sha_local, preview_name, cover_name):
     model_data = model_data if isinstance(model_data, dict) else {}
     version = version if isinstance(version, dict) else {}
     model_id = model_data.get("id") or version.get("modelId")
@@ -77,6 +91,7 @@ def _metadata(model_data, version, model_path, sha_local, preview_name):
         "activation text": _activation_text(version),
         "sha256": sha_local,
         "previewFile": preview_name,
+        "coverFile": cover_name,
         "arcencielUrl": f"https://arcenciel.io/models/{model_id}" if model_id else "",
     }
 
@@ -84,13 +99,14 @@ def _metadata(model_data, version, model_path, sha_local, preview_name):
 def write_sidecars(model_data, version, model_path, sha_local="", download_preview=True, save_html=False):
     model_path = Path(model_path)
     preview_name = None
+    cover_name = None
     if download_preview:
         try:
-            preview_name = _save_preview(_preview_url(model_data, version), model_path)
+            preview_name, cover_name = _save_preview(_preview_url(model_data, version), model_path)
         except Exception as exc:
             print(f"[ArcEnCiel] preview sidecar failed for {model_path.name}: {exc}")
 
-    metadata = _metadata(model_data, version, model_path, sha_local, preview_name)
+    metadata = _metadata(model_data, version, model_path, sha_local, preview_name, cover_name)
     info_path = model_path.with_suffix(".arcenciel.info")
     info_path.write_text(json.dumps(metadata, indent=2, ensure_ascii=False), encoding="utf-8")
 
