@@ -475,7 +475,7 @@ def on_ui_tabs():
     if settings.debug_logging_enabled():
         print("[ArcEnCiel] loaded path_presets:", path_presets)
 
-    with gr.Blocks(elem_id="arcencielTab", css="style_html.css") as arcenciel_interface:
+    with gr.Blocks(elem_id="arcencielTab", css="style.css") as arcenciel_interface:
         gr.Markdown("## ArcEnCiel Browser (Parallel Download)")
         link_status = gr.HTML(link_status_html(), elem_id="arcenciel_link_status")
         arcenciel_interface.load(fn=link_status_html, inputs=[], outputs=[link_status])

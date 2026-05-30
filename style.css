@@ -1,6 +1,76 @@
 /* --------------------------------------
-   style_html.css for ArcEnCiel extension
+   style.css for ArcEnCiel extension
    -------------------------------------- */
+
+/*
+   Ensure legible text inside the extension. Gradio applies global
+   `.prose` text styles with high specificity that can otherwise override
+   our extension colors in the latest UI theme.
+*/
+#arcenciel_results_html,
+#arcenciel_results_html .gradio-html,
+#arcenciel_results_html .gradio-html *,
+#arcenciel_model_details_html,
+#arcenciel_model_details_html .gradio-html,
+#arcenciel_model_details_html .gradio-html * {
+  color: #e5e7eb;
+}
+
+#arcenciel_results_html .arcen_model_card,
+#arcenciel_results_html .arcen_model_card * {
+  color: #f9fafb !important;
+}
+
+#arcenciel_results_html .arcen_model_info {
+  color: #f9fafb;
+}
+
+#arcenciel_results_html .arcen_model_info h4 {
+  color: #f9fafb !important;
+  font-size: 1.08em;
+  line-height: 1.2;
+}
+
+#arcenciel_results_html .arcen_model_info div,
+#arcenciel_results_html .arcen_model_card_chip {
+  color: #d6deff !important;
+}
+
+#arcenciel_model_details_html .arcen_model_detail_container,
+#arcenciel_model_details_html .arcen_model_detail_container * {
+  color: #e5e7eb;
+}
+
+#arcenciel_model_details_html .arcen_model_detail_header h2,
+#arcenciel_model_details_html h3 {
+  color: #f9fafb !important;
+}
+
+#arcenciel_download_history_panel .arcen_download_card,
+#arcenciel_download_history_panel .arcen_download_card * {
+  color: #e5e7eb;
+}
+
+/* keep original broad selectors for safety */
+#arcencielTab .gradio-html,
+#arcencielTab .gradio-html * {
+  color: #e5e7eb;
+}
+
+#arcencielTab .arcen_model_card,
+#arcencielTab .arcen_model_card * {
+  color: #f9fafb !important;
+}
+
+#arcencielTab .arcen_model_detail_container,
+#arcencielTab .arcen_model_detail_container * {
+  color: #e5e7eb;
+}
+
+#arcencielTab .arcen_download_card,
+#arcencielTab .arcen_download_card * {
+  color: #e5e7eb;
+}
 
 /* Basic model-block styling (optional from your snippet) */
 .model-block {
@@ -98,7 +168,7 @@
 
 .arcen_model_info h4 {
   margin: 0 0 0.4em;
-  font-size: 1em;
+  font-size: 1.05em;
   line-height: 1.2;
 }
 
