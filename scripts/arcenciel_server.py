@@ -11,6 +11,7 @@ import scripts.arcenciel_api as api
 import scripts.arcenciel_gui as gui
 import scripts.arcenciel_inventory as inventory
 import scripts.arcenciel_paths as path_utils
+import scripts.arcenciel_settings as settings
 
 route_registered = False  # A global guard so we don't define routes multiple times in the same session
 last_app = None
@@ -52,8 +53,31 @@ def ensure_server_routes(app: FastAPI):
         return JSONResponse(status)
 
     @app.get("/arcenciel/downloads")
-    def downloads_route():
-        return JSONResponse({"jobs": dl.list_download_statuses()})
+    def downloads_route(limit: int | None = None):
+        requested_limit = limit if limit and limit > 0 else settings.download_history_limit()
+        return JSONResponse({"jobs": dl.list_download_statuses(requested_limit)})
+
+    @app.post("/arcenciel/download_cancel/{job_id}")
+    def download_cancel_route(job_id: str):
+        status, error = dl.cancel_download(job_id)
+        if not status:
+            return JSONResponse({"error": error}, status_code=404)
+        return JSONResponse({"job": status, "message": error or "Cancel requested."})
+
+    @app.post("/arcenciel/download_cancel_all")
+    def download_cancel_all_route():
+        dl.cancel_all_downloads()
+        return JSONResponse({"message": "Cancel requested for active downloads."})
+
+    @app.post("/arcenciel/download_retry/{job_id}")
+    def download_retry_route(job_id: str):
+        status, error = dl.retry_download(job_id)
+        if not status:
+            return JSONResponse({"error": error}, status_code=404)
+        if error:
+            return JSONResponse({"error": error, "job": status}, status_code=409)
+        dl.start_downloads()
+        return JSONResponse({"job": status, "message": "Retry queued."}, status_code=202)
 
     @app.post("/arcenciel/download_with_extension")
     async def download_with_extension(request: Request):
@@ -111,8 +135,8 @@ def ensure_server_routes(app: FastAPI):
             expected_sha256=expected_hash,
             model_data=model_data,
             version_data=version_data,
-            download_preview=bool(data.get("download_preview", True)),
-            save_html_preview=bool(data.get("save_html_preview", False)),
+            download_preview=bool(data.get("download_preview", settings.download_preview_enabled())),
+            save_html_preview=bool(data.get("save_html_preview", settings.save_html_preview_enabled())),
         )
         dl.start_downloads()
 

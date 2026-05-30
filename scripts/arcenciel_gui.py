@@ -1,7 +1,4 @@
 import gradio as gr
-import time
-import requests
-from modules import shared
 import os
 import html
 
@@ -10,6 +7,7 @@ import scripts.arcenciel_global as gl
 import scripts.arcenciel_inventory as inventory
 import scripts.arcenciel_paths as path_utils
 import scripts.arcenciel_server as server
+import scripts.arcenciel_settings as settings
 import scripts.arcenciel_download as dl  # For canceling downloads
 from scripts.arcenciel_paths import get_paths_for_ui
 from scripts.arcenciel_utilities import add_utilities_subtab
@@ -447,30 +445,20 @@ def cancel_downloads_ui():
 def on_ui_tabs():
     global already_created_tab
 
-    if not already_created_tab:
-        print("[ArcEnCiel] on_ui_tabs() called first time...")
-        already_created_tab = True
-    else:
-        print("[ArcEnCiel] on_ui_tabs() called AGAIN, skipping duplicate UI mention...")
-
-    port = shared.cmd_opts.port or 7860
-    base_url = f"http://127.0.0.1:{port}"
-    ping_url = f"{base_url}/arcenciel/ping"
-
-    try:
-        r = requests.get(ping_url, timeout=2)
-        if r.status_code == 200:
-            print("[ArcEnCiel] /arcenciel/ping => OK, routes exist.")
+    if settings.debug_logging_enabled():
+        if not already_created_tab:
+            print("[ArcEnCiel] on_ui_tabs() called first time...")
         else:
-            raise RuntimeError(f"Ping responded with {r.status_code}")
-    except Exception as e:
-        print(f"[ArcEnCiel] /arcenciel/ping failed => re-registering routes. Error: {e}")
-        if not server.ensure_server_routes_on_last_app():
-            print("[ArcEnCiel] no FastAPI app available yet; app_started will register routes.")
+            print("[ArcEnCiel] on_ui_tabs() called AGAIN, skipping duplicate UI mention...")
+    already_created_tab = True
+
+    if not getattr(server, "route_registered", False):
+        server.ensure_server_routes_on_last_app()
 
     path_presets = path_utils.load_paths()
     base_model_choices = api.get_base_model_choices()
-    print("[ArcEnCiel] loaded path_presets:", path_presets)
+    if settings.debug_logging_enabled():
+        print("[ArcEnCiel] loaded path_presets:", path_presets)
 
     with gr.Blocks(elem_id="arcencielTab", css="style_html.css") as arcenciel_interface:
         gr.Markdown("## ArcEnCiel Browser (Parallel Download)")
@@ -612,7 +600,23 @@ def on_ui_tabs():
                         queue=False
                     )
 
-            # Sub-tab #2: "Utilities"
+            with gr.Tab("Downloads"):
+                gr.HTML(
+                    """
+                    <div class="arcen_download_history_shell">
+                      <div class="arcen_download_toolbar">
+                        <button id="arcenciel_download_refresh_btn" type="button">Refresh</button>
+                        <button id="arcenciel_download_cancel_all_btn" type="button">Cancel Active Downloads</button>
+                      </div>
+                      <div id="arcenciel_download_history_live" class="arcen_download_history">
+                        <div class="arcen_download_empty">No downloads yet.</div>
+                      </div>
+                    </div>
+                    """,
+                    elem_id="arcenciel_download_history_panel",
+                )
+
+            # Sub-tab: "Utilities"
             add_utilities_subtab()
 
     arcenciel_interface.queue(max_size=100)

@@ -10,6 +10,20 @@ function getGradioAppRoot() {
   return gradioApp?.shadowRoot || document;
 }
 
+function arcencielQuerySelector(selector) {
+  const root = getGradioAppRoot();
+  return root?.querySelector(selector) || document.querySelector(selector);
+}
+
+function arcencielEscapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 function arcencielSetInputValue(input, value) {
   if (!input || value === undefined || value === null || value === "")
     return false;
@@ -84,6 +98,7 @@ function arcencielPollDownloadStatus(jobId, button) {
         );
         if (["DONE", "ERROR", "CANCELED"].includes(state)) {
           button.disabled = false;
+          arcencielRefreshDownloadHistory();
           return;
         }
         setTimeout(poll, 1000);
@@ -95,6 +110,105 @@ function arcencielPollDownloadStatus(jobId, button) {
       });
   };
   setTimeout(poll, 500);
+}
+
+function arcencielFormatTimestamp(timestamp) {
+  const seconds = Number(timestamp || 0);
+  if (!seconds) return "";
+  return new Date(seconds * 1000).toLocaleString();
+}
+
+function arcencielRenderDownloadHistory(jobs) {
+  const panel = arcencielQuerySelector("#arcenciel_download_history_live");
+  if (!panel) return;
+
+  if (!Array.isArray(jobs) || jobs.length === 0) {
+    panel.innerHTML =
+      '<div class="arcen_download_empty">No downloads yet.</div>';
+    return;
+  }
+
+  const rows = jobs
+    .map((job) => {
+      const state = String(job.state || "UNKNOWN").toUpperCase();
+      const active = ["QUEUED", "DOWNLOADING", "RETRYING", "SIDECARS"].includes(
+        state,
+      );
+      const retriable = ["ERROR", "CANCELED"].includes(state);
+      const progress = Number.isFinite(job.progress) ? job.progress : 0;
+      const actions = [];
+      if (active) {
+        actions.push(
+          `<button type="button" class="arcen_download_action" data-action="cancel" data-job-id="${arcencielEscapeHtml(job.job_id)}">Cancel</button>`,
+        );
+      }
+      if (retriable) {
+        actions.push(
+          `<button type="button" class="arcen_download_action" data-action="retry" data-job-id="${arcencielEscapeHtml(job.job_id)}">Retry</button>`,
+        );
+      }
+      return `
+        <tr class="arcen_download_row state-${arcencielEscapeHtml(state.toLowerCase())}">
+          <td>
+            <div class="arcen_download_file">${arcencielEscapeHtml(job.file_name || job.path || job.job_id)}</div>
+            <div class="arcen_download_path">${arcencielEscapeHtml(job.path || "")}</div>
+          </td>
+          <td><span class="arcen_download_state">${arcencielEscapeHtml(state)}</span></td>
+          <td>
+            <div class="arcen_download_progress"><span style="width:${Math.max(0, Math.min(100, progress))}%"></span></div>
+            <div class="arcen_download_progress_text">${progress}%</div>
+          </td>
+          <td>${arcencielEscapeHtml(job.message || "")}</td>
+          <td>${arcencielEscapeHtml(arcencielFormatTimestamp(job.updated_at || job.created_at))}</td>
+          <td>${actions.join(" ")}</td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  panel.innerHTML = `
+    <table class="arcen_download_table">
+      <thead>
+        <tr>
+          <th>File</th>
+          <th>Status</th>
+          <th>Progress</th>
+          <th>Message</th>
+          <th>Updated</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function arcencielRefreshDownloadHistory() {
+  const panel = arcencielQuerySelector("#arcenciel_download_history_live");
+  if (!panel) return;
+
+  fetch("/arcenciel/downloads")
+    .then((resp) => resp.json())
+    .then((data) => {
+      arcencielRenderDownloadHistory(data?.jobs || []);
+    })
+    .catch((err) => {
+      console.error("ArcEnCiel: download history fetch error:", err);
+      panel.innerHTML =
+        '<div class="arcen_download_empty error">Failed to load download history.</div>';
+    });
+}
+
+function arcencielRunDownloadAction(action, jobId) {
+  if (!["cancel", "retry"].includes(action) || !jobId) return;
+  const url =
+    action === "cancel"
+      ? `/arcenciel/download_cancel/${encodeURIComponent(jobId)}`
+      : `/arcenciel/download_retry/${encodeURIComponent(jobId)}`;
+  fetch(url, { method: "POST" })
+    .then((resp) => resp.json().catch(() => ({})))
+    .then(() => arcencielRefreshDownloadHistory())
+    .catch((err) => console.error("ArcEnCiel: download action failed:", err));
 }
 
 function arcencielLoadSubfolders(input) {
@@ -186,6 +300,38 @@ function arcencielSendToTxt2Img({
 // ----------------------------------------------------------------------
 
 document.addEventListener("click", function (e) {
+  const refreshDownloadsBtn = e.target.closest(
+    "#arcenciel_download_refresh_btn",
+  );
+  if (refreshDownloadsBtn) {
+    e.preventDefault();
+    arcencielRefreshDownloadHistory();
+    return;
+  }
+
+  const cancelAllDownloadsBtn = e.target.closest(
+    "#arcenciel_download_cancel_all_btn",
+  );
+  if (cancelAllDownloadsBtn) {
+    e.preventDefault();
+    fetch("/arcenciel/download_cancel_all", { method: "POST" })
+      .then(() => arcencielRefreshDownloadHistory())
+      .catch((err) =>
+        console.error("ArcEnCiel: cancel all downloads failed:", err),
+      );
+    return;
+  }
+
+  const downloadActionBtn = e.target.closest(".arcen_download_action");
+  if (downloadActionBtn) {
+    e.preventDefault();
+    arcencielRunDownloadAction(
+      downloadActionBtn.getAttribute("data-action"),
+      downloadActionBtn.getAttribute("data-job-id"),
+    );
+    return;
+  }
+
   // 1) "Download with Extension" button
   const extBtn = e.target.closest(".arcen_extension_download_btn");
   if (extBtn) {
@@ -256,6 +402,7 @@ document.addEventListener("click", function (e) {
           return;
         }
         arcencielSetDownloadStatus(extBtn, data?.message || "Queued.");
+        arcencielRefreshDownloadHistory();
         if (data?.job_id) {
           arcencielPollDownloadStatus(data.job_id, extBtn);
         } else {
@@ -410,4 +557,9 @@ function setupArcencielSliderObserver() {
 // Kick off the slider observer after a short delay
 setTimeout(() => {
   setupArcencielSliderObserver();
+  arcencielRefreshDownloadHistory();
 }, 1000);
+
+setInterval(() => {
+  arcencielRefreshDownloadHistory();
+}, 2500);

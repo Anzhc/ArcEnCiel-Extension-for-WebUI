@@ -171,6 +171,115 @@
   margin: 0.25em 0 0.75em;
 }
 
+.arcen_download_history_shell {
+  width: 100%;
+}
+
+.arcen_download_toolbar {
+  display: flex;
+  gap: 0.6em;
+  flex-wrap: wrap;
+  margin: 0.5em 0 0.75em;
+}
+
+.arcen_download_toolbar button,
+.arcen_download_action {
+  background: #313131;
+  color: #f3f3f3;
+  border: 1px solid #555;
+  border-radius: 3px;
+  padding: 0.35em 0.65em;
+  cursor: pointer;
+}
+
+.arcen_download_toolbar button:hover,
+.arcen_download_action:hover {
+  background: #34416d;
+}
+
+.arcen_download_history {
+  overflow: auto;
+  max-height: 520px;
+  border: 1px solid #444;
+  border-radius: 6px;
+}
+
+.arcen_download_empty {
+  padding: 1em;
+  color: #cfd7ff;
+}
+
+.arcen_download_empty.error {
+  color: #ff9f9f;
+}
+
+.arcen_download_table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.arcen_download_table th,
+.arcen_download_table td {
+  padding: 0.55em;
+  border-bottom: 1px solid #3a3a3a;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.arcen_download_table th {
+  text-align: left;
+  background: #242424;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.arcen_download_file {
+  font-weight: bold;
+}
+
+.arcen_download_path {
+  margin-top: 0.2em;
+  color: #b7b7b7;
+  font-size: 0.9em;
+}
+
+.arcen_download_state {
+  font-weight: bold;
+}
+
+.arcen_download_row.state-done .arcen_download_state {
+  color: #9ee493;
+}
+
+.arcen_download_row.state-error .arcen_download_state {
+  color: #ff9f9f;
+}
+
+.arcen_download_row.state-canceled .arcen_download_state {
+  color: #f0c36d;
+}
+
+.arcen_download_progress {
+  width: 100%;
+  height: 0.55em;
+  background: #1d1d1d;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.arcen_download_progress span {
+  display: block;
+  height: 100%;
+  background: #6ea8fe;
+}
+
+.arcen_download_progress_text {
+  margin-top: 0.2em;
+  font-size: 0.9em;
+}
+
 /* Make code or pre blocks wrap properly in model descriptions */
 .model_description pre,
 .model_description code {

@@ -5,6 +5,8 @@ import shlex
 from pathlib import PurePosixPath
 from pathlib import Path
 
+import scripts.arcenciel_settings as settings
+
 SAVED_PATHS_FILE = Path(__file__).parent.parent / "save_paths.txt"
 # ^ This places save_paths.txt in the extension root folder
 _DEBUG_PATHS = bool(os.getenv("ARCENCIEL_DEBUG_PATHS"))
@@ -142,6 +144,10 @@ def load_paths():
             if key in KNOWN_TYPES:
                 loaded_dict[key] = val
     resolved = {key: resolve_path_value(value, key) for key, value in loaded_dict.items()}
+    for key in KNOWN_TYPES:
+        override = settings.path_override(key)
+        if override:
+            resolved[key] = resolve_path_value(override, key)
     resolved.update(commandline_path_overrides())
     return resolved
 
