@@ -37,11 +37,39 @@ def _preview_url(model_data, version):
     model_id = model_data.get("id") if isinstance(model_data, dict) else None
     if model_id:
         gallery = api.normalize_gallery_items(api.get_model_gallery(model_id))
+        ordered = _ordered_gallery_items(gallery, version)
+        for item in ordered:
+            url = api.get_image_url(item, prefer="preview")
+            if url:
+                return url
         for item in gallery:
             url = api.get_image_url(item, prefer="preview")
             if url:
                 return url
     return ""
+
+
+def _ordered_gallery_items(gallery, version):
+    image_order = version.get("imageOrder") if isinstance(version, dict) else []
+    if not isinstance(image_order, list) or not image_order:
+        return []
+
+    by_id = {}
+    for item in gallery:
+        image_id = item.get("id") if isinstance(item, dict) else None
+        if image_id is not None:
+            by_id[str(image_id)] = item
+
+    ordered = []
+    for image_id in image_order:
+        key = str(image_id)
+        if key in by_id:
+            ordered.append(by_id[key])
+            continue
+        fetched = api.fetch_image_details(image_id)
+        if isinstance(fetched, dict) and fetched.get("id"):
+            ordered.append(fetched)
+    return ordered
 
 
 def _save_preview(preview_url, model_path):
