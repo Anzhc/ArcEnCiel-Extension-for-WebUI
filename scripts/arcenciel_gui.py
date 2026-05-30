@@ -3,6 +3,7 @@ import time
 import requests
 from modules import shared
 import os
+import html
 
 import scripts.arcenciel_api as api
 import scripts.arcenciel_global as gl
@@ -12,9 +13,37 @@ import scripts.arcenciel_download as dl  # For canceling downloads
 from scripts.arcenciel_paths import get_paths_for_ui
 from scripts.arcenciel_utilities import add_utilities_subtab
 
-PLACEHOLDER_IMG = "https://via.placeholder.com/150"
+PLACEHOLDER_IMG = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
 
 already_created_tab = False
+
+
+def esc(value):
+    return html.escape(str(value or ""), quote=False)
+
+
+def esc_attr(value):
+    return html.escape(str(value or ""), quote=True)
+
+
+def multiline(value):
+    return esc(value).replace("\n", "<br/>")
+
+
+def tag_name(tag):
+    if isinstance(tag, dict):
+        return tag.get("name") or tag.get("label") or "???"
+    return str(tag or "???")
+
+
+def format_publish_hint(version):
+    status = str(version.get("status") or "").strip()
+    publish_at = str(version.get("publishAt") or "").strip()
+    if status == "SCHEDULED" and publish_at:
+        return f"Upcoming / not downloadable yet. Scheduled for {esc(publish_at)}."
+    if status:
+        return f"Not downloadable yet. Status: {esc(status)}."
+    return "Not downloadable yet."
 
 
 ##########################
@@ -35,11 +64,11 @@ def build_subfolder_input_html(model_type):
     base_dir = path_presets.get(model_type.upper())
     if not base_dir or not os.path.isdir(base_dir):
         return f"""
-          <input 
-            type="text" 
-            class="arcen_subfolder_input" 
-            data-model-type="{model_type}"
-            placeholder="(No valid path for {model_type}, subfolder disabled)" 
+          <input
+            type="text"
+            class="arcen_subfolder_input"
+            data-model-type="{esc_attr(model_type)}"
+            placeholder="No valid path for {esc_attr(model_type)}, subfolder disabled"
             style="margin-left:0.5em; min-width:120px;"
             disabled
           />
@@ -48,18 +77,18 @@ def build_subfolder_input_html(model_type):
     subfolders = gather_subfolders_recursively(base_dir)
     option_lines = ""
     for sf in subfolders:
-        option_lines += f'<option value="{sf}"/>\n'
+        option_lines += f'<option value="{esc_attr(sf)}"/>\n'
 
-    datalist_id = f"arcen_subfolders_{model_type.lower()}"
+    datalist_id = f"arcen_subfolders_{esc_attr(model_type.lower())}"
     html = f"""
     <datalist id="{datalist_id}">
       {option_lines}
     </datalist>
-    <input 
+    <input
       type="text"
       list="{datalist_id}"
       class="arcen_subfolder_input"
-      data-model-type="{model_type}"
+      data-model-type="{esc_attr(model_type)}"
       placeholder="Subfolder (optional)"
       style="margin-left:0.5em; min-width:120px;"
     />
@@ -75,11 +104,7 @@ def build_image_details_html(img_data):
         return "<div>No image data found.</div>"
 
     image_id = img_data.get("id", "")
-    file_path = (img_data.get("filePath") or "").lstrip("/")
-    if file_path:
-        full_url = f"https://arcenciel.io/uploads/{file_path}"
-    else:
-        full_url = PLACEHOLDER_IMG
+    full_url = api.get_image_url(img_data, prefer="detail") or PLACEHOLDER_IMG
 
     prompt = img_data.get("prompt", "") or ""
     neg_prompt = img_data.get("negativePrompt", "") or ""
@@ -89,15 +114,15 @@ def build_image_details_html(img_data):
     cfg = img_data.get("cfg", "") or ""
 
     send_btn_html = f"""
-    <button 
+    <button
       class="arcen_send_to_txt2img_btn"
       style="margin-top:0.5em; padding:0.4em 0.8em; cursor:pointer;"
-      data-prompt="{prompt.replace('"','&quot;')}"
-      data-neg-prompt="{neg_prompt.replace('"','&quot;')}"
-      data-sampler="{sampler}"
-      data-seed="{seed}"
-      data-steps="{steps}"
-      data-cfg="{cfg}"
+      data-prompt="{esc_attr(prompt)}"
+      data-neg-prompt="{esc_attr(neg_prompt)}"
+      data-sampler="{esc_attr(sampler)}"
+      data-seed="{esc_attr(seed)}"
+      data-steps="{esc_attr(steps)}"
+      data-cfg="{esc_attr(cfg)}"
     >
       Send to txt2img
     </button>
@@ -105,18 +130,18 @@ def build_image_details_html(img_data):
 
     html = f"""
     <div style="padding:1em;">
-      <h3>Image ID: {image_id}</h3>
+      <h3>Image ID: {esc(image_id)}</h3>
       <div style="display:flex; gap:1em;">
         <div style="flex:1; min-width:200px;">
-          <img src="{full_url}" style="max-width:100%; border:1px solid #444;"/>
+          <img src="{esc_attr(full_url)}" style="max-width:100%; border:1px solid #444;"/>
         </div>
         <div style="flex:1; min-width:200px;">
-          <div><b>Prompt:</b><br/>{prompt}</div>
-          <div style="margin-top:0.5em;"><b>Negative Prompt:</b><br/>{neg_prompt}</div>
-          <div style="margin-top:0.5em;"><b>Sampler:</b> {sampler}</div>
-          <div style="margin-top:0.5em;"><b>Seed:</b> {seed}</div>
-          <div style="margin-top:0.5em;"><b>Steps:</b> {steps}</div>
-          <div style="margin-top:0.5em;"><b>CFG:</b> {cfg}</div>
+          <div><b>Prompt:</b><br/>{multiline(prompt)}</div>
+          <div style="margin-top:0.5em;"><b>Negative Prompt:</b><br/>{multiline(neg_prompt)}</div>
+          <div style="margin-top:0.5em;"><b>Sampler:</b> {esc(sampler)}</div>
+          <div style="margin-top:0.5em;"><b>Seed:</b> {esc(seed)}</div>
+          <div style="margin-top:0.5em;"><b>Steps:</b> {esc(steps)}</div>
+          <div style="margin-top:0.5em;"><b>CFG:</b> {esc(cfg)}</div>
 
           {send_btn_html}
         </div>
@@ -138,16 +163,16 @@ def build_model_details_html(model_data):
     versions = model_data.get("versions", [])
 
     gallery_resp = api.get_model_gallery(model_id)
-    gallery_items = gallery_resp.get("data", []) or []
+    gallery_items = api.normalize_gallery_items(gallery_resp)
     if not gallery_items:
-        pinned = model_data.get("pinnedImages", [])
+        pinned = [api.unwrap_media_item(item) for item in model_data.get("pinnedImages", [])]
         if pinned:
             gallery_items = pinned
     if not gallery_items and versions:
         all_ver_imgs = []
         for v in versions:
             if "images" in v:
-                all_ver_imgs.extend(v["images"])
+                all_ver_imgs.extend(api.unwrap_media_item(item) for item in v["images"])
         if all_ver_imgs:
             gallery_items = all_ver_imgs
 
@@ -155,16 +180,16 @@ def build_model_details_html(model_data):
 <div class='arcen_model_detail_container' style='display:flex; gap:1em;'>
   <div style='flex:1; min-width:300px;'>
 """
-    html += f"<h2>{title} (ID: {model_id})</h2>"
-    html += f"<div>Type: {model_type}</div>"
+    html += f"<h2>{esc(title)} (ID: {esc(model_id)})</h2>"
+    html += f"<div>Type: {esc(model_type)}</div>"
 
     if tags:
-        tag_str = ", ".join(t.get("name", "???") for t in tags)
+        tag_str = ", ".join(esc(tag_name(t)) for t in tags)
         html += f"<div>Tags: {tag_str}</div>"
 
     uname = uploader.get("username", "N/A")
-    html += f"<div>Uploader: {uname}</div>"
-    html += f"<div class='model_description'><p>{desc}</p></div>"
+    html += f"<div>Uploader: {esc(uname)}</div>"
+    html += f"<div class='model_description'><p>{multiline(desc)}</p></div>"
 
     # Gallery
     html += "<h3>Gallery</h3><div class='arcen_model_gallery'>"
@@ -173,12 +198,10 @@ def build_model_details_html(model_data):
     else:
         for img_item in gallery_items:
             img_id = img_item.get("id", "")
-            file_path = (img_item.get("filePath") or "").lstrip("/")
-            file_base, _ = os.path.splitext(file_path.lstrip("/"))
-            img_url = f"https://arcenciel.io/uploads//{file_base}.thumbnail.webp" if file_path else PLACEHOLDER_IMG
+            img_url = api.get_image_url(img_item, prefer="thumb") or PLACEHOLDER_IMG
             html += f"""
-            <div class='arcen_gallery_item' data-image-id="{img_id}" style="cursor:pointer;">
-              <img src='{img_url}' alt='gallery item' style="max-width:100px;"/>
+            <div class='arcen_gallery_item' data-image-id="{esc_attr(img_id)}" style="cursor:pointer;">
+              <img src='{esc_attr(img_url)}' alt='gallery item' style="max-width:100px;"/>
             </div>
             """
     html += "</div>"
@@ -194,60 +217,54 @@ def build_model_details_html(model_data):
             about = ver.get("aboutThisVersion", "")
             base_model = ver.get("baseModel", "Unknown base")
             activation_tags = ver.get("activationTags", [])
-            file_name = ver.get("fileName", "")
-            external_url = ver.get("externalDownloadUrl")
-
-            if external_url:
-                direct_link = external_url
-            else:
-                direct_link = f"https://arcenciel.io/api/models/{model_id}/versions/{v_id}/download"
-
-            if not file_name:
-                if external_url:
-                    import urllib.parse
-                    last_segment = external_url.rsplit('/', 1)[-1]
-                    last_segment = last_segment.split('?')[0]
-                    file_name = urllib.parse.unquote(last_segment)
-                if not file_name:
-                    file_name = "Unknown file"
+            file_name = api.version_file_name(ver)
+            direct_link = api.version_download_url(model_id, ver)
+            is_downloadable = api.version_is_downloadable(ver) and bool(direct_link)
 
             html += "<div class='version_block' style='margin-bottom:1em; border:1px solid #444; padding:0.5em'>"
-            html += f"<b>Version ID:</b> {v_id} | <b>Name:</b> {v_name}<br/>"
-            html += f"<b>Base Model:</b> {base_model}<br/>"
+            html += f"<b>Version ID:</b> {esc(v_id)} | <b>Name:</b> {esc(v_name)}<br/>"
+            html += f"<b>Base Model:</b> {esc(base_model)}<br/>"
 
             if activation_tags:
-                triggers = ", ".join(activation_tags)
+                triggers = ", ".join(esc(tag) for tag in activation_tags)
                 html += f"<b>Trigger Words:</b> {triggers}<br/>"
             if about:
-                html += f"<div><b>Notes:</b> {about}</div>"
+                html += f"<div><b>Notes:</b> {multiline(about)}</div>"
 
-            subfolder_html = build_subfolder_input_html(model_type)
+            if is_downloadable:
+                subfolder_html = build_subfolder_input_html(model_type)
+                display_name = file_name or "ArcEnCiel-download"
+                html += f"""
+                <div style="display:flex; align-items:center; gap:0.6em; margin-top:0.5em; flex-wrap:wrap;">
+                  <a
+                    href="{esc_attr(direct_link)}"
+                    target="_blank"
+                    class="arcen_browser_download_btn"
+                    style="margin-top:0.2em;">
+                      Download (Browser)
+                  </a>
 
-            html += f"""
-            <div style="display:flex; align-items:center; gap:0.6em; margin-top:0.5em;">
-            
-              <a 
-                href="{direct_link}" 
-                target="_blank" 
-                class="arcen_extension_download_btn" 
-                style="margin-top:0.2em;">
-                  Download (Browser)
-              </a>
+                  <button
+                    class='arcen_extension_download_btn'
+                    data-model-id="{esc_attr(model_id)}"
+                    data-version-id="{esc_attr(v_id)}"
+                    data-model-type="{esc_attr(model_type)}"
+                    data-download-url="{esc_attr(direct_link)}"
+                    data-file-name="{esc_attr(display_name)}"
+                    style="margin-top:0.2em;">
+                      Download with Extension
+                  </button>
 
-              <button 
-                class='arcen_extension_download_btn' 
-                data-model-id="{model_id}"
-                data-version-id="{v_id}"
-                data-model-type="{model_type}"
-                data-download-url="{direct_link}"
-                data-file-name="{file_name}"
-                style="margin-top:0.2em;">
-                  Download with Extension
-              </button>
-
-              {subfolder_html}
-            </div>
-            """
+                  {subfolder_html}
+                  <span class="arcen_download_status" aria-live="polite"></span>
+                </div>
+                """
+            else:
+                html += f"""
+                <div class="arcen_upcoming_notice" style="margin-top:0.5em; color:#f0c36d;">
+                  {format_publish_hint(ver)}
+                </div>
+                """
 
             html += "</div>"
 
@@ -263,7 +280,7 @@ def build_model_details_html(model_data):
     return html
 
 def build_gallery_html(data_list, total_pages=1, card_scale=30):
-    html = f"<div>Total pages: {total_pages}</div>"
+    html = f"<div>Total pages: {esc(total_pages)}</div>"
     html += "<div class='arcen_model_list'>"
 
     for item in data_list:
@@ -273,12 +290,12 @@ def build_gallery_html(data_list, total_pages=1, card_scale=30):
         preview_url = item.get("preview_local") or PLACEHOLDER_IMG
 
         html += f"""
-          <div class='arcen_model_card' data-model-id="{m_id}">
-            <img class='model-bg' src="{preview_url}" alt="Preview" />
+          <div class='arcen_model_card' data-model-id="{esc_attr(m_id)}">
+            <img class='model-bg' src="{esc_attr(preview_url)}" alt="Preview" />
             <div class='model-info'>
-              <b>{title}</b><br/>
-              Type: {type_}<br/>
-              ID: {m_id}
+              <b>{esc(title)}</b><br/>
+              Type: {esc(type_)}<br/>
+              ID: {esc(m_id)}
             </div>
           </div>
         """
@@ -292,8 +309,12 @@ def build_gallery_html(data_list, total_pages=1, card_scale=30):
 def do_search_and_download(query, sort_value, page, base_model, model_type, card_scale, model_limit):
     try:
         page_int = int(page)
-    except:
+    except Exception:
         page_int = 1
+    try:
+        limit_int = max(1, int(model_limit))
+    except Exception:
+        limit_int = 8
 
     if base_model == "Any":
         base_model = ""
@@ -304,12 +325,13 @@ def do_search_and_download(query, sort_value, page, base_model, model_type, card
         search_term=query,
         sort=sort_value,
         page=page_int,
-        limit=model_limit,
+        limit=limit_int,
         base_model=base_model,
         model_type=model_type
     )
     if "data" not in resp or not resp["data"]:
-        yield "<div>API error or empty data</div>"
+        error = resp.get("error") if isinstance(resp, dict) else ""
+        yield f"<div>{esc(error) if error else 'No models found.'}</div>"
         return
 
     data_list = resp["data"]
@@ -333,7 +355,11 @@ def do_search_and_download(query, sort_value, page, base_model, model_type, card
         done_this_round = []
         for (m_id, fut) in list(unfinished):
             if fut.done():
-                data_url = fut.result()
+                try:
+                    data_url = fut.result()
+                except Exception as e:
+                    gl.debug_print("Preview download failed:", e)
+                    data_url = None
                 if data_url:
                     id_to_item[m_id]["preview_local"] = data_url
                 done_this_round.append((m_id, fut))
@@ -412,10 +438,11 @@ def on_ui_tabs():
             raise RuntimeError(f"Ping responded with {r.status_code}")
     except Exception as e:
         print(f"[ArcEnCiel] /arcenciel/ping failed => re-registering routes. Error: {e}")
-        server.route_registered = False
-        server.ensure_server_routes
+        if not server.ensure_server_routes_on_last_app():
+            print("[ArcEnCiel] no FastAPI app available yet; app_started will register routes.")
 
     path_presets = path_utils.load_paths()
+    base_model_choices = api.get_base_model_choices()
     print("[ArcEnCiel] loaded path_presets:", path_presets)
 
     with gr.Blocks(elem_id="arcencielTab", css="style_html.css") as arcenciel_interface:
@@ -431,10 +458,7 @@ def on_ui_tabs():
                     sort_box = gr.Dropdown(label="Sort", choices=["newest", "oldest"], value="newest")
                     base_model_box = gr.Dropdown(
                         label="Base Model",
-                        choices=[
-                            "Any","Illustrious","NoobAI Eps","NoobAI V-Pred",
-                            "Pony","Flux.1 D","Flux.1 S","SDXL 1.0","SD1.5"
-                        ],
+                        choices=base_model_choices,
                         value="Any"
                     )
                     model_type_box = gr.Dropdown(
@@ -451,7 +475,7 @@ def on_ui_tabs():
                         # style as you like, or rely on default
                     )
                     settings_button = gr.HTML(
-                        """<button id="arcenciel_settings_button" 
+                        """<button id="arcenciel_settings_button"
                                 style="font-size:1.2em; margin-top:6px; cursor:pointer;">
                             ⚙️
                         </button>""",
@@ -523,7 +547,7 @@ def on_ui_tabs():
                 # Cancel downloads => calls cancel_downloads_ui
                 cancel_status_label = gr.Textbox(
                     label="Cancel Status",
-                    value="", 
+                    value="",
                     interactive=False
                 )
                 cancel_btn.click(

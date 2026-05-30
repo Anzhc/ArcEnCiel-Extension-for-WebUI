@@ -2,13 +2,17 @@ import os
 import re
 import json
 import base64
+import html
 import gradio as gr
 from bs4 import BeautifulSoup
 from modules.hashes import calculate_sha256
 
 import scripts.arcenciel_api as api
 import scripts.arcenciel_paths as path_utils
-import scripts.arcenciel_global as gl
+
+
+def esc(value):
+    return html.escape(str(value or ""), quote=False)
 
 
 def clean_description(desc: str) -> str:
@@ -30,7 +34,7 @@ def clean_description(desc: str) -> str:
 
 def gather_files_recursive(dir_path, exts):
     """
-    Recursively scan 'dir_path' for files whose extension is in 'exts' 
+    Recursively scan 'dir_path' for files whose extension is in 'exts'
     and return a list of full file paths.
     """
     matched = []
@@ -56,7 +60,7 @@ def create_jsons_for_models(
     """
 
     paths_dict = path_utils.load_paths()
-    
+
     # Determine which categories are selected
     selected_keys = []
     if lora_sel: selected_keys.append("LORA")
@@ -76,7 +80,7 @@ def create_jsons_for_models(
     for key in selected_keys:
         p = paths_dict.get(key)
         if not p or not os.path.isdir(p):
-            yield f"<p style='color:orange;'>Path for {key} is not set or invalid: {p}</p>"
+            yield f"<p style='color:orange;'>Path for {esc(key)} is not set or invalid: {esc(p)}</p>"
             continue
         model_files.extend(gather_files_recursive(p, exts))
 
@@ -89,7 +93,7 @@ def create_jsons_for_models(
 
     for idx, fpath in enumerate(model_files, start=1):
         fname = os.path.basename(fpath)
-        yield f"<p>[{idx}/{total_count}] Checking: {fname}</p>"
+        yield f"<p>[{idx}/{total_count}] Checking: {esc(fname)}</p>"
 
         base_no_ext, _ = os.path.splitext(fpath)
         json_path = base_no_ext + ".json"
@@ -99,18 +103,18 @@ def create_jsons_for_models(
         need_preview = download_preview and not os.path.exists(preview_path)
 
         if not need_json and not need_preview:
-            yield f"<p style='color:blue;'>Nothing to do for {fname}, skipping.</p>"
+            yield f"<p style='color:blue;'>Nothing to do for {esc(fname)}, skipping.</p>"
             continue
 
         try:
             sha_val = calculate_sha256(fpath)
         except Exception as e:
-            yield f"<p style='color:red;'>Error hashing {fname}: {e}</p>"
+            yield f"<p style='color:red;'>Error hashing {esc(fname)}: {esc(e)}</p>"
             continue
 
         resp = api.search_models(search_term=sha_val, limit=5)
         if not resp or "data" not in resp or not resp["data"]:
-            yield f"<p>No ArcEnCiel match => skipping {fname}.</p>"
+            yield f"<p>No ArcEnCiel match => skipping {esc(fname)}.</p>"
             continue
 
         matched_model = None
@@ -125,7 +129,7 @@ def create_jsons_for_models(
                 break
 
         if not matched_model or not matched_version:
-            yield f"<p>Found models, but none had a matching version => skipping {fname}.</p>"
+            yield f"<p>Found models, but none had a matching version => skipping {esc(fname)}.</p>"
             continue
 
         if need_json:
@@ -150,24 +154,23 @@ def create_jsons_for_models(
             try:
                 with open(json_path, "w", encoding="utf-8") as f:
                     json.dump(json_data, f, indent=2)
-                yield f"<p style='color:green;'>Wrote JSON => {os.path.basename(json_path)}</p>"
+                yield f"<p style='color:green;'>Wrote JSON => {esc(os.path.basename(json_path))}</p>"
             except Exception as e:
-                yield f"<p style='color:red;'>Error writing JSON {os.path.basename(json_path)}: {e}</p>"
+                yield f"<p style='color:red;'>Error writing JSON {esc(os.path.basename(json_path))}: {esc(e)}</p>"
 
         if need_preview:
-            fake_item = {"versions": [matched_version]}
-            data_url = api.download_preview_image(fake_item)
+            data_url = api.download_preview_image(matched_model)
             if data_url:
                 try:
                     raw_b64 = data_url.split(",", 1)[1]
                     raw_data = base64.b64decode(raw_b64)
                     with open(preview_path, "wb") as imgf:
                         imgf.write(raw_data)
-                    yield f"<p style='color:green;'>Downloaded preview => {os.path.basename(preview_path)}</p>"
+                    yield f"<p style='color:green;'>Downloaded preview => {esc(os.path.basename(preview_path))}</p>"
                 except Exception as e:
-                    yield f"<p style='color:red;'>Error saving preview for {fname}: {e}</p>"
+                    yield f"<p style='color:red;'>Error saving preview for {esc(fname)}: {esc(e)}</p>"
             else:
-                yield f"<p style='color:orange;'>No preview available for {fname}.</p>"
+                yield f"<p style='color:orange;'>No preview available for {esc(fname)}.</p>"
 
     yield "<p>Done processing all models in selected categories.</p>"
 
